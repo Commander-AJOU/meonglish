@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 디버그 빌드 전용: 시험용 경로 요청(DEBUG_TOOLS route)에 필요한 권한. release 빌드에는 들어가지 않습니다. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="pleos.car.permission.NAVI_ROUTE_SEARCH" />
+</manifest>

@@ -1,0 +1,895 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    화면 구성 (아래에서 위로 겹칩니다)
+      sky       밤하늘과 구름 강아지. 늘 깔려 있습니다.
+      home      이야기를 고르기 전: 인사, 강아지 카드, 간식 주기, 큰 시작 버튼
+      story     이야기 속: 장 제목, 말풍선, "아직 멀었어?" 버튼
+      settings  어른용 설정 (정차 중에만)
+      iris      이야기 속으로 들어가고 나올 때의 동그란 장면 전환
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/night">
+
+    <com.ajikmeoreosseo.app.ui.SceneView
+        android:id="@+id/sky"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <!-- ───────── 홈 ───────── -->
+    <FrameLayout
+        android:id="@+id/home"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="56dp"
+            android:layout_marginTop="44dp"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:shadowColor="#80000000"
+                android:shadowDy="6"
+                android:shadowRadius="12"
+                android:text="@string/app_name"
+                android:textColor="@color/text"
+                android:textSize="88sp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/tagline"
+                android:textColor="@color/moon"
+                android:textSize="38sp" />
+        </LinearLayout>
+
+        <!-- 강아지 집으로 가는 버튼(정차 중에만) -->
+        <FrameLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="top|end"
+            android:layout_marginTop="32dp"
+            android:layout_marginEnd="290dp"
+            android:clipToPadding="false"
+            android:paddingTop="16dp"
+            android:paddingEnd="10dp">
+
+            <LinearLayout
+                android:id="@+id/houseButton"
+                style="@style/Clay"
+                android:layout_width="wrap_content"
+                android:layout_height="104dp"
+                android:background="@drawable/clay_white"
+                android:orientation="horizontal"
+                android:paddingStart="34dp"
+                android:paddingEnd="40dp"
+                android:paddingBottom="10dp">
+
+                <ImageView
+                    android:layout_width="52dp"
+                    android:layout_height="52dp"
+                    android:importantForAccessibility="no"
+                    android:src="@drawable/ic_house" />
+
+                <TextView
+                    android:id="@+id/houseLabel"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="14dp"
+                    android:textColor="@color/ink"
+                    android:textSize="34sp" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/houseBadge"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="top|end"
+                android:background="@drawable/clay_pink"
+                android:includeFontPadding="false"
+                android:paddingHorizontal="18dp"
+                android:paddingTop="10dp"
+                android:paddingBottom="16dp"
+                android:text="@string/house_new"
+                android:textColor="#FFFFFF"
+                android:textSize="24sp"
+                android:visibility="gone" />
+        </FrameLayout>
+
+        <!-- 어른용 설정으로 가는 버튼 -->
+        <LinearLayout
+            android:id="@+id/settingsButton"
+            style="@style/Clay"
+            android:layout_width="wrap_content"
+            android:layout_height="104dp"
+            android:layout_gravity="top|end"
+            android:layout_marginTop="48dp"
+            android:layout_marginEnd="48dp"
+            android:background="@drawable/clay_white"
+            android:contentDescription="@string/settings"
+            android:orientation="horizontal"
+            android:paddingStart="34dp"
+            android:paddingEnd="40dp"
+            android:paddingBottom="10dp">
+
+            <ImageView
+                android:layout_width="52dp"
+                android:layout_height="52dp"
+                android:importantForAccessibility="no"
+                android:src="@drawable/ic_settings" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="14dp"
+                android:text="@string/settings"
+                android:textColor="@color/ink"
+                android:textSize="34sp" />
+        </LinearLayout>
+
+        <!-- 강아지의 인사 말풍선: 화면 위에서 4분의 1쯤 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical">
+
+            <Space
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:layout_weight="24" />
+
+            <TextView
+                android:id="@+id/greeting"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
+                android:background="@drawable/bg_bubble"
+                android:gravity="center"
+                android:maxWidth="900dp"
+                android:paddingHorizontal="52dp"
+                android:paddingVertical="30dp"
+                android:textColor="@color/ink"
+                android:textSize="44sp" />
+
+            <Space
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:layout_weight="76" />
+        </LinearLayout>
+
+        <!-- 강아지 카드: 이름, 단계, 다음 모습까지의 막대. 그 아래 모은 꿈 구슬 -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|start"
+            android:layout_marginStart="56dp"
+            android:layout_marginBottom="60dp"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:id="@+id/petCard"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_tag"
+                android:minWidth="420dp"
+                android:orientation="vertical"
+                android:paddingHorizontal="36dp"
+                android:paddingTop="22dp"
+                android:paddingBottom="26dp">
+
+                <TextView
+                    android:id="@+id/petName"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/text"
+                    android:textSize="46sp" />
+
+                <TextView
+                    android:id="@+id/petLevel"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/moon"
+                    android:textSize="32sp" />
+
+                <FrameLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="20dp"
+                    android:layout_marginTop="14dp"
+                    android:background="@drawable/bg_bar_track">
+
+                    <View
+                        android:id="@+id/petBar"
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:background="@drawable/bg_bar_fill" />
+                </FrameLayout>
+
+                <TextView
+                    android:id="@+id/petNext"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:textColor="@color/text_dim"
+                    android:textSize="28sp" />
+            </LinearLayout>
+
+            <!-- 누르면 아이용 꿈 구슬 도감이 열립니다 -->
+            <LinearLayout
+                android:id="@+id/reward"
+                style="@style/Clay"
+                android:layout_width="wrap_content"
+                android:layout_height="80dp"
+                android:layout_marginTop="16dp"
+                android:background="@drawable/bg_tag"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="24dp"
+                android:paddingEnd="28dp">
+
+                <View
+                    android:layout_width="44dp"
+                    android:layout_height="44dp"
+                    android:background="@drawable/bg_bead" />
+
+                <TextView
+                    android:id="@+id/rewardText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="16dp"
+                    android:textColor="@color/text"
+                    android:textSize="32sp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="18dp"
+                    android:text="@string/reward_more"
+                    android:textColor="@color/kid_gold"
+                    android:textSize="30sp" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- 간식 주기: 모은 간식을 아이가 직접 줍니다(정차 중에만) -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|end"
+            android:layout_marginEnd="56dp"
+            android:layout_marginBottom="60dp"
+            android:gravity="end"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/feedHint"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="14dp"
+                android:background="@drawable/bg_tag"
+                android:paddingHorizontal="28dp"
+                android:paddingVertical="14dp"
+                android:textColor="@color/text_dim"
+                android:textSize="28sp" />
+
+            <LinearLayout
+                android:id="@+id/feedButton"
+                style="@style/Clay"
+                android:layout_width="wrap_content"
+                android:layout_height="150dp"
+                android:background="@drawable/clay_yellow"
+                android:orientation="horizontal"
+                android:paddingStart="40dp"
+                android:paddingEnd="52dp"
+                android:paddingBottom="10dp">
+
+                <ImageView
+                    android:id="@+id/feedIcon"
+                    android:layout_width="110dp"
+                    android:layout_height="110dp"
+                    android:importantForAccessibility="no"
+                    android:src="@drawable/treat" />
+
+                <TextView
+                    android:id="@+id/feedLabel"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="14dp"
+                    android:text="@string/feed"
+                    android:textColor="@color/ink"
+                    android:textSize="50sp" />
+
+                <TextView
+                    android:id="@+id/feedCount"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="12dp"
+                    android:textColor="@color/ink"
+                    android:textSize="44sp" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- 오늘의 이야기 제목 -->
+        <TextView
+            android:id="@+id/storyTag"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|center_horizontal"
+            android:layout_marginBottom="240dp"
+            android:background="@drawable/bg_tag"
+            android:paddingHorizontal="28dp"
+            android:paddingVertical="12dp"
+            android:textColor="@color/moon"
+            android:textSize="28sp"
+            android:visibility="gone" />
+
+        <!-- 이야기 시작: 화면에서 가장 크고 밝은 버튼 -->
+        <LinearLayout
+            android:id="@+id/startButton"
+            style="@style/Clay"
+            android:layout_width="wrap_content"
+            android:layout_height="168dp"
+            android:layout_gravity="bottom|center_horizontal"
+            android:layout_marginBottom="60dp"
+            android:background="@drawable/clay_yellow"
+            android:minWidth="600dp"
+            android:orientation="horizontal"
+            android:paddingStart="64dp"
+            android:paddingEnd="76dp"
+            android:paddingBottom="12dp">
+
+            <ImageView
+                android:layout_width="84dp"
+                android:layout_height="84dp"
+                android:importantForAccessibility="no"
+                android:src="@drawable/ic_play" />
+
+            <TextView
+                android:id="@+id/startLabel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="18dp"
+                android:text="@string/start_story"
+                android:textColor="@color/ink"
+                android:textSize="62sp" />
+        </LinearLayout>
+    </FrameLayout>
+
+    <!-- ───────── 이야기 속 ───────── -->
+    <FrameLayout
+        android:id="@+id/story"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/chapter"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="48dp"
+            android:layout_marginTop="48dp"
+            android:background="@drawable/bg_tag"
+            android:paddingHorizontal="40dp"
+            android:paddingVertical="20dp"
+            android:textColor="@color/moon"
+            android:textSize="38sp" />
+
+        <LinearLayout
+            android:id="@+id/stopButton"
+            style="@style/Clay"
+            android:layout_width="wrap_content"
+            android:layout_height="104dp"
+            android:layout_gravity="top|end"
+            android:layout_marginTop="48dp"
+            android:layout_marginEnd="48dp"
+            android:background="@drawable/clay_white"
+            android:contentDescription="@string/stop_story"
+            android:orientation="horizontal"
+            android:paddingStart="30dp"
+            android:paddingEnd="40dp"
+            android:paddingBottom="10dp">
+
+            <ImageView
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:importantForAccessibility="no"
+                android:src="@drawable/ic_close" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
+                android:text="@string/stop_story"
+                android:textColor="@color/ink"
+                android:textSize="34sp" />
+        </LinearLayout>
+
+        <!-- 안전벨트를 기다리는 동안 -->
+        <LinearLayout
+            android:id="@+id/beltCard"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:background="@drawable/clay_card"
+            android:gravity="center_horizontal"
+            android:orientation="vertical"
+            android:paddingHorizontal="72dp"
+            android:paddingTop="48dp"
+            android:paddingBottom="58dp"
+            android:visibility="gone">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/belt_title"
+                android:textColor="@color/ink"
+                android:textSize="60sp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:id="@+id/beltHint"
+                android:layout_marginBottom="32dp"
+                android:textColor="@color/hint"
+                android:textSize="34sp" />
+
+            <TextView
+                android:id="@+id/beltButton"
+                style="@style/Clay.Small"
+                android:text="@string/belt_confirm" />
+        </LinearLayout>
+
+        <!-- 아이가 말할 차례를 듣는 중. 정차 중에는 어른이 "잘 말했어요"로 통과시켜 줄 수 있습니다. -->
+        <LinearLayout
+            android:id="@+id/listeningTag"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|center_horizontal"
+            android:layout_marginBottom="232dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:visibility="gone">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/clay_pink"
+                android:paddingHorizontal="36dp"
+                android:paddingTop="12dp"
+                android:paddingBottom="18dp"
+                android:text="@string/listening"
+                android:textColor="#FFFFFF"
+                android:textSize="34sp" />
+
+            <TextView
+                android:id="@+id/listenConfirm"
+                style="@style/Clay.Small"
+                android:layout_height="84dp"
+                android:layout_marginStart="20dp"
+                android:minWidth="0dp"
+                android:text="@string/listen_confirm" />
+        </LinearLayout>
+
+        <!-- 강아지의 말풍선과 "아직 멀었어?" -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom"
+            android:layout_margin="44dp"
+            android:baselineAligned="false"
+            android:gravity="bottom"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/caption"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:background="@drawable/bg_bubble"
+                android:gravity="center"
+                android:lineSpacingMultiplier="1.2"
+                android:minHeight="168dp"
+                android:paddingHorizontal="52dp"
+                android:paddingVertical="30dp"
+                android:textColor="@color/ink"
+                android:textSize="46sp" />
+
+            <TextView
+                android:id="@+id/howFarButton"
+                style="@style/Clay"
+                android:layout_width="wrap_content"
+                android:layout_height="168dp"
+                android:layout_marginStart="28dp"
+                android:background="@drawable/clay_pink"
+                android:paddingStart="52dp"
+                android:paddingEnd="52dp"
+                android:paddingBottom="12dp"
+                android:text="@string/how_far_two_lines"
+                android:textColor="#FFFFFF"
+                android:textSize="42sp" />
+        </LinearLayout>
+    </FrameLayout>
+
+    <!-- ───────── 꿈 구슬 도감 (아이용, 정차 중에만) ───────── -->
+    <LinearLayout
+        android:id="@+id/wordbook"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/night"
+        android:clickable="true"
+        android:orientation="vertical"
+        android:paddingHorizontal="56dp"
+        android:paddingTop="44dp"
+        android:paddingBottom="36dp"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/wordbookTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:shadowColor="#80000000"
+                    android:shadowDy="4"
+                    android:shadowRadius="8"
+                    android:textColor="@color/text"
+                    android:textSize="60sp" />
+
+                <TextView
+                    android:id="@+id/wordbookSummary"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/moon"
+                    android:textSize="32sp" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/wordbookHint"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="28dp"
+                android:textColor="@color/text_dim"
+                android:textSize="28sp" />
+
+            <LinearLayout
+                android:id="@+id/wordbookBack"
+                style="@style/Clay"
+                android:layout_width="wrap_content"
+                android:layout_height="104dp"
+                android:background="@drawable/clay_white"
+                android:contentDescription="@string/back"
+                android:orientation="horizontal"
+                android:paddingStart="30dp"
+                android:paddingEnd="40dp"
+                android:paddingBottom="10dp">
+
+                <ImageView
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:importantForAccessibility="no"
+                    android:src="@drawable/ic_back" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="10dp"
+                    android:text="@string/back"
+                    android:textColor="@color/ink"
+                    android:textSize="34sp" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_marginTop="24dp"
+            android:layout_weight="1"
+            android:scrollbars="none">
+
+            <LinearLayout
+                android:id="@+id/wordGrid"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" />
+        </ScrollView>
+    </LinearLayout>
+
+    <!-- ───────── 강아지 집 (정차 중에만) ───────── -->
+    <LinearLayout
+        android:id="@+id/house"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/night"
+        android:baselineAligned="false"
+        android:clickable="true"
+        android:orientation="horizontal"
+        android:paddingStart="44dp"
+        android:paddingTop="44dp"
+        android:paddingEnd="44dp"
+        android:paddingBottom="44dp"
+        android:visibility="gone">
+
+        <com.ajikmeoreosseo.app.ui.HouseView
+            android:id="@+id/houseView"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1" />
+
+        <!-- 오른쪽: 제목, 설명, 물건 상자 -->
+        <LinearLayout
+            android:layout_width="440dp"
+            android:layout_height="match_parent"
+            android:layout_marginStart="36dp"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/houseTitle"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:shadowColor="#80000000"
+                    android:shadowDy="4"
+                    android:shadowRadius="8"
+                    android:textColor="@color/text"
+                    android:textSize="56sp" />
+
+                <LinearLayout
+                    android:id="@+id/houseBack"
+                    style="@style/Clay"
+                    android:layout_width="wrap_content"
+                    android:layout_height="96dp"
+                    android:background="@drawable/clay_white"
+                    android:contentDescription="@string/back"
+                    android:orientation="horizontal"
+                    android:paddingStart="26dp"
+                    android:paddingEnd="34dp"
+                    android:paddingBottom="8dp">
+
+                    <ImageView
+                        android:layout_width="44dp"
+                        android:layout_height="44dp"
+                        android:importantForAccessibility="no"
+                        android:src="@drawable/ic_back" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:text="@string/back"
+                        android:textColor="@color/ink"
+                        android:textSize="32sp" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/houseHint"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:text="@string/house_hint"
+                android:textColor="@color/text_dim"
+                android:textSize="28sp" />
+
+            <ScrollView
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_marginTop="18dp"
+                android:layout_weight="1"
+                android:scrollbars="none">
+
+                <LinearLayout
+                    android:id="@+id/houseTray"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical" />
+            </ScrollView>
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- ───────── 설정 (어른용, 정차 중에만) ───────── -->
+    <ScrollView
+        android:id="@+id/settings"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/kid_paper"
+        android:clickable="true"
+        android:fillViewport="true"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingHorizontal="64dp"
+            android:paddingTop="44dp"
+            android:paddingBottom="64dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <LinearLayout
+                    android:id="@+id/settingsBack"
+                    style="@style/Clay"
+                    android:layout_width="wrap_content"
+                    android:layout_height="104dp"
+                    android:background="@drawable/clay_white"
+                    android:contentDescription="@string/back"
+                    android:orientation="horizontal"
+                    android:paddingStart="30dp"
+                    android:paddingEnd="40dp"
+                    android:paddingBottom="10dp">
+
+                    <ImageView
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        android:importantForAccessibility="no"
+                        android:src="@drawable/ic_back" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="10dp"
+                        android:text="@string/back"
+                        android:textColor="@color/ink"
+                        android:textSize="34sp" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="36dp"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/settings"
+                        android:textColor="@color/ink"
+                        android:textSize="60sp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/settings_hint"
+                        android:textColor="@color/hint"
+                        android:textSize="30sp" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <LinearLayout style="@style/SettingsCard">
+
+                <TextView
+                    style="@style/SettingsTitle"
+                    android:text="@string/settings_name" />
+
+                <TextView
+                    android:id="@+id/settingsNameValue"
+                    style="@style/SettingsBody" />
+
+                <TextView
+                    android:id="@+id/settingsNameButton"
+                    style="@style/Clay.Small"
+                    android:text="@string/settings_name_change" />
+            </LinearLayout>
+
+            <LinearLayout style="@style/SettingsCard">
+
+                <TextView
+                    style="@style/SettingsTitle"
+                    android:text="@string/settings_pet_name" />
+
+                <TextView
+                    android:id="@+id/settingsPetNameValue"
+                    style="@style/SettingsBody" />
+
+                <TextView
+                    android:id="@+id/settingsPetNameButton"
+                    style="@style/Clay.Small"
+                    android:text="@string/settings_pet_name_change" />
+            </LinearLayout>
+
+            <LinearLayout style="@style/SettingsCard">
+
+                <TextView
+                    style="@style/SettingsTitle"
+                    android:text="@string/settings_english" />
+
+                <TextView
+                    android:id="@+id/settingsEnglishValue"
+                    style="@style/SettingsBody" />
+
+                <TextView
+                    android:id="@+id/settingsEnglishButton"
+                    style="@style/Clay.Small"
+                    android:text="@string/settings_english_open" />
+            </LinearLayout>
+
+            <LinearLayout style="@style/SettingsCard">
+
+                <TextView
+                    style="@style/SettingsTitle"
+                    android:text="@string/settings_story" />
+
+                <TextView
+                    android:id="@+id/settingsStoryValue"
+                    style="@style/SettingsBody" />
+
+                <TextView
+                    android:id="@+id/settingsStoryButton"
+                    style="@style/Clay.Small"
+                    android:text="@string/settings_story_remake" />
+            </LinearLayout>
+
+            <LinearLayout style="@style/SettingsCard">
+
+                <TextView
+                    style="@style/SettingsTitle"
+                    android:text="@string/settings_note" />
+
+                <TextView
+                    android:id="@+id/settingsNoteValue"
+                    style="@style/SettingsBody" />
+
+                <TextView
+                    android:id="@+id/settingsNoteButton"
+                    style="@style/Clay.Small"
+                    android:text="@string/settings_note_write" />
+            </LinearLayout>
+
+            <LinearLayout style="@style/SettingsCard">
+
+                <TextView
+                    style="@style/SettingsTitle"
+                    android:text="@string/settings_secret" />
+
+                <TextView
+                    style="@style/SettingsBody"
+                    android:layout_marginBottom="0dp"
+                    android:text="@string/settings_secret_body" />
+            </LinearLayout>
+
+            <LinearLayout style="@style/SettingsCard">
+
+                <TextView
+                    style="@style/SettingsTitle"
+                    android:text="@string/settings_voice" />
+
+                <TextView
+                    android:id="@+id/settingsVoiceValue"
+                    style="@style/SettingsBody"
+                    android:layout_marginBottom="0dp" />
+            </LinearLayout>
+        </LinearLayout>
+    </ScrollView>
+
+    <com.ajikmeoreosseo.app.ui.IrisView
+        android:id="@+id/iris"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone" />
+</FrameLayout>

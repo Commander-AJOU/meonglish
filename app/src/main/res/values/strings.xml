@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">아직 멀었어?</string>
+    <string name="tagline">구름 강아지와 영어 동화</string>
+
+    <!-- 홈 -->
+    <string name="start_story">이야기 시작</string>
+    <string name="restart_story">한 번 더 듣기</string>
+    <string name="greeting">{이름아}, 오늘도 {멍이랑} 달빛 섬에 가 볼까?</string>
+    <string name="greeting_baby">{이름아}, 아기 {멍이} 기다렸어. 오늘도 같이 달빛 섬에 가 볼까?</string>
+    <string name="greeting_adult">{이름아}, 다 자란 {멍이} 준비 끝! 오늘도 달빛 섬으로 출발할까?</string>
+    <string name="greeting_after">{이름아}, 오늘도 잘 들었어! 또 만나.</string>
+    <string name="greeting_treats">{이름아}, 간식이 %1$d개 있어! {멍한테} 줘 볼까?</string>
+    <string name="greeting_grown">와! {멍이} 자랐어! {이름이} 영어를 열심히 배운 덕분이야.</string>
+    <string name="reward">꿈 구슬 %1$d개 · 레벨 %2$d</string>
+    <string name="reward_off">꿈 구슬 %1$d개</string>
+    <string name="reward_more">도감 ›</string>
+    <string name="wordbook_title">{멍의} 꿈 구슬 도감</string>
+    <string name="wordbook_summary">꿈 구슬 %1$d개 · 배우는 중 %2$d개</string>
+    <string name="wordbook_hint">카드를 누르면 {멍이} 읽어 줘요</string>
+    <string name="wordbook_mastered">✦ 꿈 구슬</string>
+    <string name="wordbook_section_mastered">완전히 알았어요</string>
+    <string name="wordbook_section_learning">배우는 중</string>
+    <string name="wordbook_empty">아직 카드가 없어요. 이야기를 들으면서 영어를 배우면 여기에 카드가 생겨요.</string>
+    <string name="pet_level">Lv.%1$d · %2$s</string>
+    <string name="pet_next">다음 모습까지 간식 %1$d개</string>
+    <string name="pet_grown">다 자랐어요! 그래도 간식은 늘 좋아해요.</string>
+    <string name="feed">간식 주기</string>
+    <string name="feed_count">×%1$d</string>
+    <string name="feed_none">간식이 없어요</string>
+    <string name="feed_hint">이야기 속에서 영어를 배우면 간식이 생겨요</string>
+    <string name="feed_driving">차를 세우면 줄 수 있어요</string>
+    <string name="settings">설정</string>
+    <string name="house_button">{멍}네 집</string>
+    <string name="house_new">새 물건!</string>
+    <string name="house_hint">물건을 누르면 집에 놓여요. 다시 누르면 치워요.</string>
+    <string name="house_locked">Lv.%1$d에 열려요</string>
+    <string name="greeting_new_item">{이름아}, {멍}네 집에 새 물건이 열렸어! 놓아 볼까?</string>
+
+    <!-- 이야기 속 -->
+    <string name="stop_story">그만</string>
+    <string name="how_far_two_lines">아직\n멀었어?</string>
+    <string name="caption_driving">이야기를 들려주는 중이에요</string>
+    <string name="belt_title">안전벨트를 찰칵!</string>
+    <string name="belt_hint">벨트를 매면 {멍이} 출발해요</string>
+    <string name="belt_confirm">벨트 맸어요</string>
+    <string name="intro_kicker">오늘의 이야기</string>
+    <string name="intro_with">{이름}와 함께</string>
+    <string name="intro_writing">오늘의 이야기를 쓰고 있어요…</string>
+    <string name="intro_writing_sub">목적지까지 남은 시간에 맞춰서</string>
+    <string name="listening">🎤 따라 말해 봐!</string>
+    <string name="service_channel">이야기 재생</string>
+    <string name="service_text">이야기를 들려주는 중이에요</string>
+    <string name="listen_confirm">잘 말했어요</string>
+    <string name="feed_count_half">×%1$d½</string>
+    <string name="feed_half_only">반 조각</string>
+
+    <!-- 설정 (어른용) -->
+    <string name="back">뒤로</string>
+    <string name="settings_hint">어른이 보는 화면이에요. 차를 세웠을 때만 열려요.</string>
+    <string name="settings_name">주인공 이름</string>
+    <string name="settings_name_set">지금 주인공은 ‘%1$s’예요. {멍이} 이름을 불러 줘요.</string>
+    <string name="settings_name_unset">아직 정하지 않았어요. 이름을 넣으면 아이가 이야기의 주인공이 돼요.</string>
+    <string name="settings_name_change">이름 바꾸기</string>
+    <string name="settings_pet_name">강아지 이름</string>
+    <string name="settings_pet_name_set">강아지 이름은 ‘%1$s’예요. Lv.%2$d, %3$s. 아이가 직접 정하게 해 주세요.</string>
+    <string name="settings_pet_name_change">이름 바꾸기</string>
+    <string name="settings_english">영어</string>
+    <string name="settings_english_on">레벨 %1$d · 꿈 구슬 %2$d개 · 배우는 중 %3$d개</string>
+    <string name="settings_english_next">다음에 배울 새 말: %1$s</string>
+    <string name="settings_english_pace">요즘 따라 말하기 통과 %1$d%% → 한 번 탈 때 새 말 %2$d개</string>
+    <string name="settings_english_pace_unknown">아직 통과율을 재는 중 → 한 번 탈 때 새 말 %1$d개</string>
+    <string name="settings_english_off">영어 수업이 꺼져 있어요.</string>
+    <string name="settings_english_open">단어장 열기</string>
+    <string name="settings_voice">목소리</string>
+    <string name="settings_story">오늘의 이야기</string>
+    <string name="settings_story_no_key">API 키가 없어 기본 이야기만 들려줘요. secrets.properties에 OPENAI_API_KEY를 넣고 다시 빌드하세요.</string>
+    <string name="settings_story_working">오늘의 이야기를 쓰는 중이에요…</string>
+    <string name="settings_story_ready">오늘의 이야기: ‘%1$s’. 날마다 새 이야기가 만들어지고, 오늘 배울 말이 이야기에 들어가요.</string>
+    <string name="settings_story_idle">오늘의 이야기를 아직 만들지 않았어요.</string>
+    <string name="settings_story_failed">오늘의 이야기를 만들지 못해 기본 이야기를 들려줘요. (%1$s)</string>
+    <string name="settings_story_remake">다른 이야기로 다시 쓰기</string>
+    <string name="settings_note">오늘 있었던 일</string>
+    <string name="settings_note_empty">오늘 있었던 일을 적어 주면 강아지가 이야기 속에서 “오늘 이런 일이 있었다며? 어땠어?” 하고 물어봐요.</string>
+    <string name="settings_note_set">‘%1$s’. 오늘의 이야기에 넣었어요. 내일이 되면 저절로 지워져요.</string>
+    <string name="settings_note_no_key">API 키가 있어야 이야기에 넣을 수 있어요.</string>
+    <string name="settings_note_write">적기</string>
+    <string name="note_clear">지우기</string>
+    <string name="note_message">짧게 적어 주세요. 이 글은 이야기를 쓰려고 OpenAI로 보내지니 주소나 전화번호 같은 개인정보는 적지 마세요.</string>
+    <string name="note_hint">예: 유치원에서 넘어져서 무릎을 다쳤어</string>
+    <string name="settings_secret">어른만 아는 비밀 버튼</string>
+    <string name="settings_secret_body">이야기를 듣는 중에 왼쪽 위 장 제목을 길게 누르면, 강아지가 우는 아이를 달래요. 아이에게는 비밀이에요.</string>
+    <string name="home_story_today">오늘의 이야기 · %1$s</string>
+
+    <!-- 이름 입력 -->
+    <string name="name_title">이야기 주인공</string>
+    <string name="name_message">아이 이름을 넣으면 구름 강아지가 이름을 불러 주고, 아이가 이야기의 주인공이 돼요. 성은 빼고 이름만 적어 주세요.</string>
+    <string name="name_hint">예: 서준</string>
+    <string name="name_save">저장</string>
+    <string name="name_clear">이름 지우기</string>
+    <string name="pet_name_title">강아지 이름</string>
+    <string name="pet_name_message">아이가 정한 강아지 이름을 적어 주세요. 비워 두면 ‘콩이’라고 불러요.</string>
+    <string name="pet_name_hint">예: 콩이</string>
+</resources>

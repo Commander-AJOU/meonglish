@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 밤하늘과 이야기 -->
+    <color name="night">#17135F</color>
+    <color name="moon">#FFE9A8</color>
+    <color name="ink">#16204D</color>
+    <color name="text">#FFFFFF</color>
+    <color name="text_dim">#D6DBFF</color>
+    <color name="hint">#64709B</color>
+
+    <!-- 어린이 화면: 배움의 파랑, 놀이의 노랑, 신나는 분홍, 칭찬의 금색 -->
+    <color name="kid_blue">#2563EB</color>
+    <color name="kid_yellow">#FBBF24</color>
+    <color name="kid_pink">#EC4899</color>
+    <color name="kid_gold">#FFD34D</color>
+    <color name="kid_paper">#EFF6FF</color>
+</resources>

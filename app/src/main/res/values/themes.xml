@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.AjikMeoreosseo" parent="android:Theme.DeviceDefault.NoActionBar">
+        <item name="android:windowBackground">@color/night</item>
+        <item name="android:statusBarColor">@color/night</item>
+        <item name="android:navigationBarColor">@color/night</item>
+        <!-- 둥글둥글한 어린이용 한글 글꼴 (Jua, SIL Open Font License) -->
+        <item name="android:fontFamily">@font/jua</item>
+    </style>
+
+    <!-- 아이 손에도 쉽게 눌리는 큼직한 점토 버튼 -->
+    <style name="Clay">
+        <item name="android:gravity">center</item>
+        <item name="android:clickable">true</item>
+        <item name="android:focusable">true</item>
+        <item name="android:includeFontPadding">false</item>
+    </style>
+
+    <style name="Clay.Small">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">104dp</item>
+        <item name="android:minWidth">260dp</item>
+        <item name="android:paddingStart">44dp</item>
+        <item name="android:paddingEnd">44dp</item>
+        <item name="android:paddingBottom">10dp</item>
+        <item name="android:background">@drawable/clay_blue</item>
+        <item name="android:textColor">#FFFFFF</item>
+        <item name="android:textSize">34sp</item>
+    </style>
+
+    <style name="SettingsCard">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">28dp</item>
+        <item name="android:background">@drawable/clay_card</item>
+        <item name="android:orientation">vertical</item>
+        <item name="android:paddingStart">44dp</item>
+        <item name="android:paddingEnd">44dp</item>
+        <item name="android:paddingTop">36dp</item>
+        <item name="android:paddingBottom">46dp</item>
+    </style>
+
+    <style name="SettingsTitle">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:textColor">@color/ink</item>
+        <item name="android:textSize">40sp</item>
+    </style>
+
+    <style name="SettingsBody">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">8dp</item>
+        <item name="android:layout_marginBottom">24dp</item>
+        <item name="android:lineSpacingMultiplier">1.25</item>
+        <item name="android:textColor">@color/hint</item>
+        <item name="android:textSize">32sp</item>
+    </style>
+</resources>

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 앱 아이콘 앞면: 구름 강아지(3단계 그림). 적응형 아이콘 규격에 맞춰 안쪽으로 여유를 둡니다. -->
+<inset xmlns:android="http://schemas.android.com/apk/res/android"
+    android:drawable="@drawable/puppy_3"
+    android:inset="14%" />

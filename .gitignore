@@ -1,0 +1,20 @@
+.gradle/
+.idea/
+.kotlin/
+build/
+local.properties
+*.iml
+.DS_Store
+
+# API 키와 서명 키
+secrets.properties
+keystore.properties
+*.jks
+*.keystore
+
+# Remotion (animation/)
+animation/node_modules/
+animation/out/
+
+# 키를 뺀 APK (빌드 산출물)
+dist/

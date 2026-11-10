@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-feature
+        android:name="android.hardware.type.automotive"
+        android:required="true" />
+
+    <!-- Pleos Vehicle SDK: 읽기 전용 신호만 사용합니다. -->
+    <uses-permission android:name="pleos.car.permission.CAR_LIGHTS" />   <!-- 방향지시등 -->
+    <uses-permission android:name="pleos.car.permission.CAR_WINDOWS" />  <!-- 와이퍼 -->
+    <uses-permission android:name="pleos.car.permission.CAR_DRIVE" />    <!-- 브레이크, 기어 -->
+    <uses-permission android:name="pleos.car.permission.CAR_SEATS" />    <!-- 뒷좌석 착석, 안전벨트 -->
+    <uses-permission android:name="pleos.car.permission.CAR_DOORS" />    <!-- 뒷문 -->
+
+    <!-- Pleos TextToSpeech SDK -->
+    <uses-permission android:name="pleos.car.permission.TTS_SERVICE" />
+    <!-- 아이가 영어를 따라 말하는지 차량 마이크로 듣습니다(차량 안에서만 인식) -->
+    <uses-permission android:name="pleos.car.permission.STT_SERVICE" />
+
+    <!-- ElevenLabs 음성 합성(선택). 키가 없으면 통신하지 않습니다. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Pleos NaviHelper SDK: 목적지까지 남은 시간 -->
+    <uses-permission android:name="pleos.car.permission.NAVI_ROUTE" />
+
+    <!-- 내비 화면을 띄워 둔 동안에도 이야기가 이어지도록(재생 중 포그라운드 서비스) -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <application
+        android:allowBackup="false"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.AjikMeoreosseo">
+
+        <activity
+            android:name=".MainActivity"
+            android:configChanges="uiMode|orientation|screenSize|screenLayout|smallestScreenSize|density|keyboard|keyboardHidden|navigation"
+            android:exported="true"
+            android:launchMode="singleTask">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <!-- 주행 중에도 화면이 가려지지 않도록 선언합니다. 주행 중에는 긴 글을 숨깁니다. -->
+            <meta-data
+                android:name="distractionOptimized"
+                android:value="true" />
+        </activity>
+
+        <service
+            android:name=".StoryService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback" />
+    </application>
+</manifest>
