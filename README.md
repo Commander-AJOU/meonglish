@@ -1,4 +1,4 @@
-# 아직 멀었어?
+# 멍글리시
 
 차가 들려주는 이야기. 뒷자리 아이에게 오디오 동화를 들려주고, 방향지시등·와이퍼·브레이크 같은
 차량 신호가 올 때마다 이야기가 그에 맞춰 반응하며, 동화 사이사이에 영어를 가르치는 Pleos Connect 앱입니다.
@@ -9,8 +9,8 @@
 | 항목 | 내용 |
 |---|---|
 | 팀 | 커맨드아주 |
-| 앱 이름 | 아직 멀었어? (v0.2.0, `com.ajikmeoreosseo.app`) |
-| APK 파일 위치 | [`apk/커맨드아주_아직멀었어_release.apk`](apk/커맨드아주_아직멀었어_release.apk) (release 빌드) |
+| 앱 이름 | 멍글리시 (v0.2.0, `com.ajikmeoreosseo.app`) |
+| APK 파일 위치 | [`apk/커맨드아주_멍글리시_release.apk`](apk/커맨드아주_멍글리시_release.apk) (release 빌드) |
 | 실행 방법 | [실행 방법](#실행-방법) |
 | 테스트 환경 및 필요한 설정 | [테스트 환경 및 필요한 설정](#테스트-환경-및-필요한-설정) |
 | 시연 영상 | [`docs/demo/ajik-meoreosseo-demo.mp4`](docs/demo/ajik-meoreosseo-demo.mp4) (2분 30초) |
@@ -289,10 +289,10 @@ npx remotion render Demo ../docs/demo/ajik-meoreosseo-demo.mp4
 2. 이 저장소의 APK를 설치합니다.
 
    ```bash
-   adb install -r "apk/커맨드아주_아직멀었어_release.apk"
+   adb install -r "apk/커맨드아주_멍글리시_release.apk"
    ```
 
-3. 앱 목록에서 **아직 멀었어?** 를 엽니다. 기어가 P일 때 오른쪽 위 **설정**에서 주인공(아이) 이름을 넣고,
+3. 앱 목록에서 **멍글리시**를 엽니다. 기어가 P일 때 오른쪽 위 **설정**에서 주인공(아이) 이름을 넣고,
    홈에서 **이야기 시작**을 누릅니다.
 4. 차량 신호는 Pleos Connect Virtual Console에서 바꿉니다.
 

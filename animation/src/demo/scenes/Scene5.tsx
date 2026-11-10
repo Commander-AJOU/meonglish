@@ -22,7 +22,7 @@ const CARDS_AT = s(10.2);
 /** 그래픽 강아지의 가운데 x. 왼쪽에는 실제 앱의 간식 주기 화면이 들어갑니다. */
 const CX = 1250;
 /** clips/feed.mp4에서 간식 주기 버튼을 누른 때(초). 첫 간식이 날아가는 때와 맞춥니다. */
-const CLIP_FEED = 2.17;
+const CLIP_FEED = 3.13;
 
 /** 5-1: 간식을 주면 자라고, 이름은 아이가 지어 줍니다. */
 const Growth: React.FC = () => {

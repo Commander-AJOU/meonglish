@@ -43,7 +43,7 @@ export const Scene2: React.FC<{ duration: number }> = ({ duration }) => {
       </div>
 
       <div style={{ position: "absolute", left: 800, top: 380 }}>
-        <PopText text="아직 멀었어?" at={s(1.6)} size={168} accent={C.yellow} />
+        <PopText text="멍글리시" at={s(1.6)} size={190} accent={C.yellow} />
       </div>
       <div
         style={{
