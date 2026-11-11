@@ -19,7 +19,7 @@ const TOPICS = [
   { name: "때와 학교", count: 71, sample: "Monday · Picnic · Game" },
   { name: "사람", count: 57, sample: "Grandma · Pilot · Chef" },
   { name: "차와 길", count: 48, sample: "Wiper · Tire · Subway" },
-  { name: "이야기 속 낱말", count: 33, sample: "Puppy · Moon · Wish" },
+  { name: "이야기 속 단어", count: 33, sample: "Puppy · Moon · Wish" },
   { name: "공룡과 상상", count: 27, sample: "Dragon · Fairy · Alien" },
   { name: "수", count: 26, sample: "One · Ten · Hundred" },
   { name: "색깔", count: 15, sample: "Red · Silver · Navy" },
@@ -34,10 +34,10 @@ const Scale: React.FC = () => {
     <AbsoluteFill style={{ fontFamily: FONT }}>
       <div style={{ position: "absolute", left: 0, top: 232, width: 1920, display: "flex", justifyContent: "center", gap: 28 }}>
         {[
-          { label: "낱말", value: total.toLocaleString("en-US"), color: C.yellow, at: 8 },
+          { label: "단어", value: total.toLocaleString("en-US"), color: C.yellow, at: 8 },
           { label: "짧은 표현", value: "171", color: "#FFFFFF", at: 40 },
           { label: "문장", value: "147", color: "#FFFFFF", at: 48 },
-          { label: "익힌 낱말로 만드는 문장", value: "끝없이", color: C.green, at: 56 },
+          { label: "익힌 단어로 만드는 문장", value: "끝없이", color: C.green, at: 56 },
         ].map((item) => (
           <div
             key={item.label}
@@ -135,7 +135,7 @@ const Picking: React.FC = () => {
       <div style={{ position: "absolute", left: 250, top: 676, width: 1420, opacity: pop(frame, 62, false), transform: `translateY(${(1 - pop(frame, 62, false)) * 30}px)` }}>
         <Img src={art("settings_english")} style={{ width: 1420, borderRadius: 26, boxShadow: "0 14px 34px rgba(8,6,40,0.45)" }} />
         <div style={{ textAlign: "center", fontSize: 28, color: "rgba(255,255,255,0.65)", marginTop: 10 }}>
-          실제 앱의 설정 화면 · 비 오는 날 공원에 갈 때 고른 새 말
+          실제 앱의 설정 화면 · 비 오는 날 공원에 갈 때 고른 새 단어
         </div>
       </div>
     </AbsoluteFill>
@@ -143,9 +143,9 @@ const Picking: React.FC = () => {
 };
 
 const LEVELS = [
-  { rate: 90, label: "척척 맞히면", result: "새 말 4개", note: "연달아 맞히면 하나 더", color: C.green },
-  { rate: 65, label: "보통이면", result: "새 말 3개", note: "복습 4개와 번갈아", color: C.yellow },
-  { rate: 30, label: "힘들어하면", result: "새 말 2개", note: "아는 말부터 · 단계는 그대로", color: C.pink },
+  { rate: 90, label: "척척 맞히면", result: "새 단어 4개", note: "연달아 맞히면 하나 더", color: C.green },
+  { rate: 65, label: "보통이면", result: "새 단어 3개", note: "복습 4개와 번갈아", color: C.yellow },
+  { rate: 30, label: "힘들어하면", result: "새 단어 2개", note: "아는 단어부터 · 단계는 그대로", color: C.pink },
 ];
 
 /** 3: 아이 속도에 맞춘 양과 단계. */
@@ -199,7 +199,7 @@ const Pace: React.FC = () => {
 /** 배우는 말의 규모와, 무엇을 얼마나 배울지 고르는 방법. */
 export const SceneWords: React.FC<{ duration: number }> = ({ duration }) => (
   <AbsoluteFill>
-    <Header at={2} until={PICK_AT - 8} text="배우는 말은 " hi="1,400가지가 넘어요" />
+    <Header at={2} until={PICK_AT - 8} text="배우는 단어와 문장은 " hi="1,400가지가 넘어요" />
     <Header at={PICK_AT + 2} until={PACE_AT - 8} text="무엇을 먼저 배울지는 " hi="지금 상황이 정해요" />
     <Header at={PACE_AT + 2} text="얼마나 배울지는 " hi="아이 속도에 맞춰요" />
     <Phase start={0} end={PICK_AT}>

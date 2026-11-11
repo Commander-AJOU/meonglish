@@ -231,7 +231,7 @@ const Home: React.FC = () => {
 
       {/* 배운 말 카드 */}
       <div style={{ position: "absolute", left: 1080, top: 232, width: 740, textAlign: "center", opacity: pop(frame, CARDS_AT - 6, false) }}>
-        <Pill size={36}>꿈 구슬 도감 · 배운 말이 카드로</Pill>
+        <Pill size={36}>꿈 구슬 도감 · 배운 단어가 카드로</Pill>
       </div>
       {WORDS.map((word, i) => {
         const at = CARDS_AT + i * 5;

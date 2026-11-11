@@ -70,11 +70,11 @@ export const SceneSentence: React.FC = () => {
   const enter = pop(frame, 2, false);
   return (
     <AbsoluteFill style={{ fontFamily: FONT }}>
-      <Header at={4} text="익힌 낱말이 모이면, " hi="표현과 문장으로" />
+      <Header at={4} text="익힌 단어가 모이면, " hi="표현과 문장으로" />
 
       {/* 익힌 낱말 두 개 */}
       <div style={{ position: "absolute", left: 90, top: 244, width: 830, display: "flex", alignItems: "center", gap: 20 }}>
-        <div style={{ fontSize: 32, color: "rgba(255,255,255,0.7)", marginRight: 6 }}>익힌 낱말(꿈 구슬)</div>
+        <div style={{ fontSize: 32, color: "rgba(255,255,255,0.7)", marginRight: 6 }}>익힌 단어(꿈 구슬)</div>
         {["Dog", "Big"].map((word, i) => (
           <div key={word} style={{ transform: `scale(${frame >= 12 + i * 8 ? pop(frame, 12 + i * 8) : 0})` }}>
             <Pill size={50} bg="linear-gradient(160deg, #FFE9A8 0%, #FBBF24 100%)" color="#7C4A03" style={{ boxShadow: `0 0 26px ${C.yellow}88` }}>
@@ -110,7 +110,7 @@ export const SceneSentence: React.FC = () => {
         korean="개가 커요."
       />
       <div style={{ position: "absolute", left: 90, top: 778, width: 830, textAlign: "center", opacity: frame >= CARD2 + 14 ? pop(frame, CARD2 + 14, false) : 0 }}>
-        <Pill size={34}>익힌 낱말이 늘수록 새 문장도 끝없이 늘어요</Pill>
+        <Pill size={34}>익힌 단어가 늘수록 새 문장도 끝없이 늘어요</Pill>
       </div>
 
       {/* 실제 앱 */}

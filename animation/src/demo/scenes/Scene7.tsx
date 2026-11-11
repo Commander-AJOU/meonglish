@@ -26,7 +26,7 @@ export const Scene7: React.FC = () => {
   const line = reached <= 1 ? 0 : (chipX - XS[0]) / (XS[4] - XS[0]);
   return (
     <AbsoluteFill style={{ fontFamily: FONT }}>
-      <Header at={2} text="배운 말은 " hi="잊기 전에 다시" />
+      <Header at={2} text="배운 단어는 " hi="잊기 전에 다시" />
       <div style={{ position: "absolute", left: XS[0], top: 455, width: XS[4] - XS[0], height: 10, borderRadius: 5, background: "rgba(255,255,255,0.22)" }}>
         <div style={{ width: `${line * 100}%`, height: "100%", borderRadius: 5, background: C.yellow }} />
       </div>
