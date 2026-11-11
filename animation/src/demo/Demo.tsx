@@ -10,6 +10,7 @@ import { Scene5 } from "./scenes/Scene5";
 import { Scene6 } from "./scenes/Scene6";
 import { Scene7 } from "./scenes/Scene7";
 import { Scene8 } from "./scenes/Scene8";
+import { SceneLevel } from "./scenes/SceneLevel";
 import { SceneSecret } from "./scenes/SceneSecret";
 import { SceneSentence } from "./scenes/SceneSentence";
 import { SceneWords } from "./scenes/SceneWords";
@@ -40,6 +41,7 @@ const LATER = [
   { scene: SCENE.five, node: <Scene5 duration={SCENE.five.duration} />, fadeOut: true },
   { scene: SCENE.seven, node: <Scene7 />, fadeOut: true },
   { scene: SCENE.sentence, node: <SceneSentence />, fadeOut: true },
+  { scene: SCENE.level, node: <SceneLevel />, fadeOut: true },
   { scene: SCENE.words, node: <SceneWords duration={SCENE.words.duration} />, fadeOut: true },
   { scene: SCENE.three, node: <Scene3 />, fadeOut: true },
   { scene: SCENE.navi, node: <NaviPart />, fadeOut: true },

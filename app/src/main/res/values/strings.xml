@@ -82,7 +82,7 @@
     <string name="settings_english_open">단어장 열기</string>
     <string name="settings_voice">목소리</string>
     <string name="settings_story">오늘의 이야기</string>
-    <string name="settings_story_no_key">API 키가 없어 기본 이야기만 들려줘요. secrets.properties에 OPENAI_API_KEY를 넣고 다시 빌드하세요.</string>
+    <string name="settings_story_no_key">API 키가 없어 기본 이야기만 들려줘요. secrets.properties에 ANTHROPIC_API_KEY를 넣고 다시 빌드하세요.</string>
     <string name="settings_story_working">오늘의 이야기를 쓰는 중이에요…</string>
     <string name="settings_story_ready">오늘의 이야기: ‘%1$s’. 날마다 새 이야기가 만들어지고, 오늘 배울 말이 이야기에 들어가요.</string>
     <string name="settings_story_idle">오늘의 이야기를 아직 만들지 않았어요.</string>
@@ -94,7 +94,7 @@
     <string name="settings_note_no_key">API 키가 있어야 이야기에 넣을 수 있어요.</string>
     <string name="settings_note_write">적기</string>
     <string name="note_clear">지우기</string>
-    <string name="note_message">짧게 적어 주세요. 이 글은 이야기를 쓰려고 OpenAI로 보내지니 주소나 전화번호 같은 개인정보는 적지 마세요.</string>
+    <string name="note_message">짧게 적어 주세요. 이 글은 이야기를 쓰려고 Claude(Anthropic)로 보내지니 주소나 전화번호 같은 개인정보는 적지 마세요.</string>
     <string name="note_hint">예: 유치원에서 넘어져서 무릎을 다쳤어</string>
     <string name="settings_secret">어른만 아는 비밀 버튼</string>
     <string name="settings_secret_body">이야기를 듣는 중에 왼쪽 위 장 제목을 길게 누르면, 강아지가 우는 아이를 달래요. 달리는 중에는 한 번만 톡 누르면 돼요. 아이에게는 비밀이에요.</string>

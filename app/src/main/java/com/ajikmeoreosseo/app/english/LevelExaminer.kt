@@ -3,18 +3,8 @@ package com.ajikmeoreosseo.app.english
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
-import com.anthropic.client.AnthropicClient
-import com.anthropic.client.okhttp.AnthropicOkHttpClient
-import com.anthropic.core.JsonValue
-import com.anthropic.errors.AnthropicServiceException
-import com.anthropic.errors.RateLimitException
-import com.anthropic.models.beta.AnthropicBeta
-import com.anthropic.models.beta.messages.BetaJsonOutputFormat
-import com.anthropic.models.beta.messages.BetaOutputConfig
-import com.anthropic.models.beta.messages.BetaStopReason
-import com.anthropic.models.beta.messages.MessageCreateParams
+import com.ajikmeoreosseo.app.ai.ClaudeApi
 import org.json.JSONObject
-import java.time.Duration
 import java.util.concurrent.Executors
 import kotlin.random.Random
 
@@ -74,20 +64,11 @@ class LocalExaminer(seen: Set<String>, startLevel: Int = 1, private val skip: In
  * 보내는 것은 문제(우리말·영어), 맞았는지, 차가 알아들은 글뿐입니다. 아이 이름과 목소리는 보내지 않습니다.
  * 통신이 안 되거나 응답이 이상하면 그 자리에서 기본 테스트([LocalExaminer])가 이어받습니다.
  */
-class ClaudeExaminer(
-    apiKey: String,
-    private val model: String,
-    private val seen: Set<String>,
-    random: Random = Random.Default,
-) : LevelExaminer {
+class ClaudeExaminer(private val seen: Set<String>, random: Random = Random.Default) : LevelExaminer {
 
     private val main = Handler(Looper.getMainLooper())
     private val worker = Executors.newSingleThreadExecutor()
-    private val client: AnthropicClient = AnthropicOkHttpClient.builder()
-        .apiKey(apiKey)
-        .timeout(Duration.ofSeconds(TIMEOUT_SECONDS))
-        .maxRetries(1)
-        .build()
+    private val client = ClaudeApi.client(TIMEOUT_SECONDS)
 
     /** 낼 수 있는 문제: 레벨마다 [PER_LEVEL]개씩 무작위로. */
     private val candidates: List<Word> =
@@ -107,7 +88,7 @@ class ClaudeExaminer(
         val asked = history.toList()
         worker.execute {
             val step = runCatching { askClaude(asked) }
-                .onFailure { Log.w(TAG, "claude failed: ${describe(it)}") }
+                .onFailure { Log.w(TAG, "claude failed: ${ClaudeApi.reason(it)} (${it.javaClass.simpleName})") }
                 .getOrNull()
             main.post {
                 if (closed) return@post
@@ -130,28 +111,8 @@ class ClaudeExaminer(
     }
 
     private fun askClaude(history: List<TestAnswer>): TestStep? {
-        val params = MessageCreateParams.builder()
-            .model(model)
-            .maxTokens(16_000L)
-            .system(SYSTEM)
-            .addUserMessage(prompt(candidates, history, MAX_QUESTIONS - history.size))
-            .outputConfig(
-                BetaOutputConfig.builder()
-                    // 문제 하나를 고르는 짧은 판단이고 아이가 기다리므로 가장 가벼운 단계로 둡니다.
-                    .effort(BetaOutputConfig.Effort.LOW)
-                    .format(BetaJsonOutputFormat.builder().schema(SCHEMA).build())
-                    .build()
-            )
-            // 안전 분류기가 요청을 거절하면 서버가 다른 모델로 한 번 더 시도합니다.
-            .addBeta(AnthropicBeta.SERVER_SIDE_FALLBACK_2026_07_01)
-            .fallbacksDefault()
-            .build()
-        val message = client.beta().messages().create(params)
-        if (message.stopReason().orElse(null) == BetaStopReason.REFUSAL) {
-            Log.w(TAG, "claude refused")
-            return null
-        }
-        val text = message.content().firstNotNullOfOrNull { block -> block.text().orElse(null)?.text() } ?: return null
+        // 문제 하나를 고르는 짧은 판단이고 아이가 기다리므로 가장 가벼운 단계로 둡니다.
+        val text = ClaudeApi.json(client, SYSTEM, prompt(candidates, history, MAX_QUESTIONS - history.size), SCHEMA, ClaudeApi.Effort.LOW)
         val json = JSONObject(text)
         Log.d(TAG, "claude: $text")
         return decide(
@@ -165,16 +126,8 @@ class ClaudeExaminer(
         )
     }
 
-    /** 무엇 때문에 실패했는지(기록용). 어떤 실패든 기본 테스트가 이어받습니다. */
-    private fun describe(error: Throwable): String = when (error) {
-        is RateLimitException -> "rate limited"
-        is AnthropicServiceException -> "api error ${error.statusCode()}"
-        else -> error.javaClass.simpleName + ": " + error.message
-    }
-
     companion object {
         private const val TAG = "LevelExaminer"
-        const val DEFAULT_MODEL = "claude-opus-5-5"
         const val MAX_QUESTIONS = 8
         private const val PER_LEVEL = 8
         private const val TIMEOUT_SECONDS = 20L
@@ -209,22 +162,17 @@ class ClaudeExaminer(
         """.trimIndent()
 
         /** 응답 형식: 한 번의 결정. */
-        private val SCHEMA: BetaJsonOutputFormat.Schema = BetaJsonOutputFormat.Schema.builder()
-            .putAdditionalProperty("type", JsonValue.from("object"))
-            .putAdditionalProperty(
-                "properties",
-                JsonValue.from(
-                    mapOf(
-                        "action" to mapOf("type" to "string", "enum" to listOf("ask", "finish")),
-                        "question_id" to mapOf("type" to "string"),
-                        "level" to mapOf("type" to "integer"),
-                        "comment" to mapOf("type" to "string"),
-                    )
-                ),
-            )
-            .putAdditionalProperty("required", JsonValue.from(listOf("action", "question_id", "level", "comment")))
-            .putAdditionalProperty("additionalProperties", JsonValue.from(false))
-            .build()
+        private val SCHEMA: Map<String, Any> = mapOf(
+            "type" to "object",
+            "properties" to mapOf(
+                "action" to mapOf("type" to "string", "enum" to listOf("ask", "finish")),
+                "question_id" to mapOf("type" to "string"),
+                "level" to mapOf("type" to "integer"),
+                "comment" to mapOf("type" to "string"),
+            ),
+            "required" to listOf("action", "question_id", "level", "comment"),
+            "additionalProperties" to false,
+        )
 
         /** Claude에게 보내는 이번 차례의 글: 지금까지의 대답, 남은 문제 수, 낼 수 있는 문제. */
         fun prompt(candidates: List<Word>, history: List<TestAnswer>, questionsLeft: Int): String = buildString {

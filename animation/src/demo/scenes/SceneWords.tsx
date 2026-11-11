@@ -142,30 +142,67 @@ const Picking: React.FC = () => {
   );
 };
 
-const LEVELS = [
-  { rate: 90, label: "척척 맞히면", result: "새 단어 4개", note: "연달아 맞히면 하나 더", color: C.green },
-  { rate: 65, label: "보통이면", result: "새 단어 3개", note: "복습 4개와 번갈아", color: C.yellow },
-  { rate: 30, label: "힘들어하면", result: "새 단어 2개", note: "아는 단어부터 · 단계는 그대로", color: C.pink },
+/** 앱의 설정 "배우는 양"과 같은 계산: 출발하자마자 하나, 그 뒤로 10분마다 고른 수만큼(EnglishCoach.expectedLessons). */
+const PER_TEN = 3;
+const TRIPS = [
+  { label: "15분 등원길", minutes: 15, color: C.yellow },
+  { label: "1시간 나들이", minutes: 60, color: C.green },
 ];
 
-/** 3: 아이 속도에 맞춘 양과 단계. */
+/** 3: 얼마나 배울지는 부모가 "10분마다 몇 개"로 고르고, 이동이 길수록 그만큼 더 배웁니다. */
 const Pace: React.FC = () => {
   const frame = useCurrentFrame() - PACE_AT;
   return (
     <AbsoluteFill style={{ fontFamily: FONT }}>
-      {LEVELS.map((level, i) => {
-        const at = 8 + i * 16;
+      {/* 설정의 선택지: 1~5개 */}
+      <div style={{ position: "absolute", left: 160, top: 250, width: 1600, opacity: pop(frame, 6, false) }}>
+        <div style={{ fontSize: 34, color: "rgba(255,255,255,0.75)", marginBottom: 14 }}>설정 · 10분마다 영어 몇 개 (복습 포함)</div>
+        <div style={{ display: "flex", gap: 18, alignItems: "center" }}>
+          {[1, 2, 3, 4, 5].map((count) => {
+            const at = 10 + count * 4;
+            const picked = count === PER_TEN && frame >= 36;
+            return (
+              <div
+                key={count}
+                style={{
+                  transform: `scale(${frame >= at ? pop(frame, at) : 0}) scale(${picked ? 1.12 : 1})`,
+                  width: 150,
+                  height: 96,
+                  borderRadius: 48,
+                  background: picked ? C.blue : "#FFFFFF",
+                  color: picked ? "#FFFFFF" : C.ink,
+                  fontSize: 46,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  boxShadow: "0 8px 0 rgba(0,0,0,0.22)",
+                }}
+              >
+                {count}개
+              </div>
+            );
+          })}
+          <div style={{ marginLeft: 22, fontSize: 30, color: C.pink, opacity: frame >= 46 ? pop(frame, 46, false) : 0 }}>
+            5개는 아이가 지루해할 수 있어요
+          </div>
+        </div>
+      </div>
+
+      {/* 이동이 길수록 그만큼 더 */}
+      {TRIPS.map((trip, i) => {
+        const at = 60 + i * 26;
         if (frame < at) return null;
-        const fill = interpolate(frame, [at + 4, at + 26], [0, level.rate], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+        const lessons = 1 + Math.floor((trip.minutes * PER_TEN) / 10);
+        const shown = Math.round(interpolate(frame, [at + 6, at + 6 + lessons * 2], [0, lessons], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }));
         return (
           <div
-            key={level.label}
+            key={trip.label}
             style={{
               position: "absolute",
               left: 160,
-              top: 262 + i * 196,
+              top: 470 + i * 200,
               width: 1600,
-              height: 168,
+              height: 172,
               borderRadius: 40,
               background: "rgba(10,9,32,0.5)",
               transform: `scale(${pop(frame, at)})`,
@@ -173,21 +210,19 @@ const Pace: React.FC = () => {
               alignItems: "center",
               padding: "0 44px",
               boxSizing: "border-box",
-              gap: 40,
+              gap: 36,
             }}
           >
-            <div style={{ width: 330, fontSize: 50, color: "#FFFFFF" }}>{level.label}</div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 28, color: "#FFFFFF", opacity: 0.65, marginBottom: 8 }}>요즘 따라 말하기 통과 {Math.round(fill)}%</div>
-              <div style={{ height: 26, borderRadius: 13, background: "rgba(255,255,255,0.18)" }}>
-                <div style={{ width: `${fill}%`, height: "100%", borderRadius: 13, background: level.color }} />
-              </div>
+            <div style={{ width: 330, fontSize: 50, color: "#FFFFFF" }}>{trip.label}</div>
+            <div style={{ flex: 1, display: "flex", gap: 9 }}>
+              {Array.from({ length: shown }, (_, k) => (
+                <div key={k} style={{ width: 30, height: 30, borderRadius: 15, background: trip.color, flexShrink: 0 }} />
+              ))}
             </div>
-            <div style={{ width: 430, textAlign: "right", transform: `scale(${frame >= at + 22 ? pop(frame, at + 22) : 0})`, transformOrigin: "100% 50%" }}>
-              <Pill size={52} bg={level.color} color={C.ink}>
-                {level.result}
+            <div style={{ width: 300, textAlign: "right" }}>
+              <Pill size={52} bg={trip.color} color={C.ink}>
+                영어 {shown}개쯤
               </Pill>
-              <div style={{ fontSize: 28, color: "#FFFFFF", opacity: 0.75, marginTop: 8 }}>{level.note}</div>
             </div>
           </div>
         );
@@ -201,7 +236,7 @@ export const SceneWords: React.FC<{ duration: number }> = ({ duration }) => (
   <AbsoluteFill>
     <Header at={2} until={PICK_AT - 8} text="배우는 단어와 문장은 " hi="1,400가지가 넘어요" />
     <Header at={PICK_AT + 2} until={PACE_AT - 8} text="무엇을 먼저 배울지는 " hi="지금 상황이 정해요" />
-    <Header at={PACE_AT + 2} text="얼마나 배울지는 " hi="아이 속도에 맞춰요" />
+    <Header at={PACE_AT + 2} text="얼마나 배울지는 " hi="10분마다 몇 개로" />
     <Phase start={0} end={PICK_AT}>
       <Scale />
     </Phase>

@@ -32,6 +32,9 @@ class AnswerListener(context: Context) {
      */
     private val debugAudioFile = java.io.File(context.applicationContext.filesDir, "debug_answer.pcm")
 
+    /** 시험용(디버그 빌드): 말마다 따로 둔 소리. 레벨 테스트처럼 무엇을 물을지 미리 알 수 없을 때 씁니다. */
+    private val debugAnswersDir = java.io.File(context.applicationContext.filesDir, "debug_answers")
+
     /** 지금 차에서 들을 수 있는지. 초기화 실패나 언어 미지원이면 false. */
     var available = false
         private set
@@ -133,10 +136,13 @@ class AnswerListener(context: Context) {
         expected = word
         this.onResult = onResult
         heardSoFar = null
-        val debugAudio = if (com.ajikmeoreosseo.app.BuildConfig.DEBUG && debugAudioFile.exists()) {
-            runCatching { debugAudioFile.readBytes() }.getOrNull().also { debugAudioFile.delete() }
-        } else {
-            null
+        // 시험용(디버그 빌드): 그 말에 맞춰 둔 소리(debug_answers/<id>.pcm)가 있으면 그것을, 없으면 한 번 쓰는 소리(debug_answer.pcm)를 넣습니다.
+        val perWord = java.io.File(debugAnswersDir, word.id + ".pcm")
+        val debugAudio = when {
+            !com.ajikmeoreosseo.app.BuildConfig.DEBUG -> null
+            perWord.exists() -> runCatching { perWord.readBytes() }.getOrNull()
+            debugAudioFile.exists() -> runCatching { debugAudioFile.readBytes() }.getOrNull().also { debugAudioFile.delete() }
+            else -> null
         }
         val started = runCatching {
             stt.setLocale(Locale.US)

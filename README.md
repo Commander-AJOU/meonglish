@@ -36,8 +36,8 @@
 ## 매일 새 이야기
 
 세계관(구름이 된 차, 구름 강아지, 달빛 섬)은 같고, 가는 길의 모험은 날마다 다릅니다. 앱을 켜면(정차 중)
-그날의 이야기를 OpenAI API로 씁니다(`story/StoryGenerator.kt`, 기본 모델 `gpt-5-mini`. `secrets.properties`의
-`OPENAI_API_KEY`, 모델은 `OPENAI_MODEL`로 바꿀 수 있음. `gpt-5-nano`는 더 싸지만 한국어 조사·문장이 자주 깨져 기본으로 쓰지 않음).
+그날의 이야기를 Claude API로 씁니다(`story/StoryGenerator.kt`, `ai/ClaudeApi.kt`, 공식 Anthropic Java SDK. 기본 모델은 싸고 빠른
+`claude-haiku-5-5`이고 `secrets.properties`의 `ANTHROPIC_API_KEY`, 모델은 `ANTHROPIC_MODEL`로 바꿀 수 있음).
 
 - 날짜로 고른 모험 주제 20가지가 돌아가고, 최근 사흘 제목은 피합니다.
 - **오늘 배울 영어의 우리말 뜻**을 이야기에 3~5개 녹여 넣습니다. 아이는 이야기에서 들은 말을 장 사이 영어 수업에서 다시 만납니다.
@@ -54,9 +54,9 @@
   키가 없거나 통신이 안 되거나 검사에 걸리면 기본 이야기 「구름 강아지와 달빛 섬」을 들려줍니다.
 - **오늘 있었던 일**: 설정에 적어 두면(100자까지, `story/TodayNote.kt`) 그 내용을 넣어 오늘의 이야기를 다시 씁니다. 첫 장에서 강아지가
   "{이름아}, 오늘 ~했다며? 어땠어?" 하고 묻고 5초 기다린 뒤 마음을 받아 주며, 모험 중간과 결말에서 한 번씩 이어 갑니다. 적은 글은 다음 날 저절로
-  사라지고, 이야기를 쓰려고 OpenAI로 보내집니다(입력 창에 안내). 키가 없거나 기본 이야기로 넘어가면 들어가지 않습니다.
+  사라지고, 이야기를 쓰려고 Claude(Anthropic)로 보내집니다(입력 창에 안내). 키가 없거나 기본 이야기로 넘어가면 들어가지 않습니다.
 - 모델이 "{멍}은"처럼 표시 뒤에 조사를 따로 쓰거나 "{멍이가}"처럼 겹쳐 써도 앱이 올바른 표시로 고칩니다.
-- 비용: 이야기 한 편에 입력 약 3천 토큰, 출력 약 2천 토큰으로 mini 모델이면 10원 안팎, 걸리는 시간은 10초 안쪽입니다. 새 문장의 음성은 ElevenLabs로
+- 비용: 이야기 한 편에 입력 약 3천 토큰, 출력 약 2천 토큰으로 Haiku 5.5(입력 100만 토큰에 0.1달러, 출력 0.5달러)면 2~3원, 걸리는 시간은 30초 안팎입니다(경로가 잡히면 미리 써 둡니다). 새 문장의 음성은 ElevenLabs로
   처음 한 번 만들어지므로 날마다 2천 자쯤 음성 요금이 듭니다.
 
 ## 동작
@@ -209,7 +209,7 @@
 - 강아지가 우리말을 말하면("'사과'. 영어로 뭐라고 할까?") 아이가 영어로 대답하고, 차가 듣고(SpeechToText) 맞았는지 봅니다.
   차 마이크가 뒷자리 소리를 못 들을 수 있으므로 어른이 언제든 "알아요" / "몰라요"를 눌러 대신 정할 수 있고, 못 들었을 때는
   틀린 것으로 넘기지 않고 어른이 누를 때까지 기다립니다.
-- **Claude가 출제합니다**(Anthropic API 키가 있을 때, 공식 Java SDK `com.anthropic:anthropic-java`, 모델 `claude-opus-5-5`):
+- **Claude가 출제합니다**(Anthropic API 키가 있을 때, 공식 Java SDK `com.anthropic:anthropic-java`, 모델 `claude-haiku-5-5`):
   문제마다 Claude에게 지금까지의 대답과 낼 수 있는 문제 목록(앱 단어장에서 레벨마다 8개)을 보내면, Claude가 아이의 대답을 보고
   다음 문제를 고릅니다. 잘하면 레벨을 건너뛰고, 헷갈리면 같은 레벨을 한 번 더 확인해 4~8문제 안에 끝내고, 레벨과 함께 부모에게
   보여 줄 한두 문장("단어는 잘 알아요. 짧은 표현부터 시작할게요.")을 정합니다. 차가 알아들은 글자도 함께 보내므로, 인식기가
@@ -221,8 +221,10 @@
   이미 배우는 중이거나 익힌 말, 차의 움직임과 묶인 말은 문제로 내지 않습니다.
 - 그 뒤로는 타면서 맞춥니다(아래 '무엇을 얼마나 배울지'). 레벨 테스트로 출발점을 잡고, 주행 중 통과율로 양을 조절하는 방식입니다.
 - 에뮬레이터에서 확인: 기본 테스트로 두 문제를 맞히고 두 문제를 모르면 레벨 2로 저장되고 맞힌 두 말이 꿈 구슬로 들어감, 듣기 시간이
-  지나면 어른의 답을 기다림, 잘못된 키로 Claude를 부르면(401) 기본 테스트가 이어받아 첫 문제가 나옴. 올바른 키로 Claude가
-  출제하는 흐름은 키가 없어 이 저장소에서는 확인하지 못했습니다.
+  지나면 어른의 답을 기다림, 잘못된 키로 Claude를 부르면(401) 기본 테스트가 이어받아 첫 문제가 나옴.
+  Claude 출제: 쉬운 단어 다섯(고양이·바나나·크다·뛰어요·딸기)을 맞히고 짧은 표현 둘(큰 트럭·이거)을 모르자 일곱 문제 만에 레벨 3으로 끝내고
+  "고양이, 바나나, 딸기, 크다 같은 단어를 자신 있게 말했어요. 짧은 구절부터 차근차근 배우도록 3단계에서 시작할게요."라고 적음.
+  한 문제를 고르는 데 2~5초가 걸렸고, 그동안 강아지가 "맞아!" 하고 말합니다.
 
 ![설정의 영어·배우는 양](docs/screen-level.png)
 
@@ -321,12 +323,12 @@ cd animation && npm install && bash scripts/export.sh
 
 ## 시연 영상
 
-[`docs/demo/ajik-meoreosseo-demo.mp4`](docs/demo/ajik-meoreosseo-demo.mp4) — 1920×1080, 3분 11초.
+[`docs/demo/ajik-meoreosseo-demo.mp4`](docs/demo/ajik-meoreosseo-demo.mp4) — 1920×1080, 3분 35초.
 "아직 멀었어?"로 시작해 "벌써 다 왔어?"로 끝나는 모션그래픽입니다. 도입에서는 부모가 겪는 상황에 공감하도록 했습니다:
 운전에 집중해야 하는 부모와 지루한 아이 → 결국 쥐여 주는 태블릿 → 일찍부터 시키고 싶은 영어 공부(교육부 「2024 유아 사교육비
 시험조사」의 5세 사교육 참여율 81.2%, 영어유치원 월평균 154만 원) → 화면 대신 옆에서 같이 배우는 친구. 그다음 주요 기능을 차례로 소개하되, 앞 장면을 보고 궁금해질 즈음에
 그 답이 되는 장면이 오게 했습니다: 매일 새로 쓰는 동화 → 동화 사이 영어 수업(통과하면 간식) → 간식으로 자라는 강아지 → 배운 말의 복습과
-문장으로의 확장 → 무엇을 얼마나 배우는지 → 차의 움직임과 함께, 운전은 방해하지 않게(깜빡이, 내비) → 아이가 울 때(비밀 버튼).
+문장으로의 확장 → 레벨 테스트(AI가 출제) → 무엇을 얼마나 배우는지(10분마다 몇 개) → 차의 움직임과 함께, 운전은 방해하지 않게(깜빡이, 내비) → 아이가 울 때(비밀 버튼).
 차량 화면 틀 안의 장면(깜빡이를 켠 동안 말없이 기울고 끈 뒤 이야기로 받아 주기,
 따라 말하기 → 통과, 첫 화면(로비)에서 "Here you are!"로 간식 주기, 오늘 있었던 일을 묻는 이야기, 비밀 버튼, 익힌 낱말로 만든 표현 "A big dog")은 Pleos Connect 에뮬레이터에서 녹화한 실제 앱 화면입니다.
 "이야기는 매일 새로 씁니다" 장면의 세 편은 앱이 11월 8·9·10일에 실제로 쓴 이야기의 제목과 문장입니다.
@@ -336,7 +338,7 @@ cd animation && npm install && bash scripts/export.sh
 
 ```bash
 cd animation && npm install
-python3 scripts/make_music.py 191.3          # 오르골풍 배경 음악과 효과음을 직접 합성(표준 라이브러리만 사용)
+python3 scripts/make_music.py 214.8          # 오르골풍 배경 음악과 효과음을 직접 합성(표준 라이브러리만 사용)
 bash scripts/narrate.sh <목소리ID> a_ "n1=문장" …   # 내레이션(ElevenLabs, 키는 secrets.properties에서 읽음)
 python3 scripts/pull_voice.py <앱 음성 저장 폴더> public/demo/app   # 앱이 만들어 둔 강아지 목소리 꺼내기
 npx remotion render Demo ../docs/demo/ajik-meoreosseo-demo.mp4
@@ -344,7 +346,8 @@ npx remotion render Demo ../docs/demo/ajik-meoreosseo-demo.mp4
 
 - 소리는 세 겹입니다: 내레이터(강아지와 다른 어른 목소리), 앱이 실제로 내는 강아지 목소리, 음악·효과음.
 - 장면 시각·자막·소리는 `animation/src/demo/timeline.ts` 한 곳에서 맞춥니다.
-- 따라 말하기와 간식 주기 장면의 아이 목소리는 마이크 대신 시험용 음성을 인식기에 넣은 것입니다(에뮬레이터에는 마이크가 없음).
+- 따라 말하기, 레벨 테스트, 간식 주기 장면의 아이 목소리는 마이크 대신 시험용 음성을 인식기에 넣은 것입니다(에뮬레이터에는 마이크가 없음).
+- 레벨 테스트 장면은 Claude가 실제로 출제한 테스트를 녹화한 것이고, 오른쪽의 문제 목록과 결과(레벨 3)도 그 녹화와 같습니다.
 - 깜빡이 장면의 "다음 수업" 부분과 내비 장면은 앱의 실제 대사·음성을 그래픽으로 다시 보여 준 것입니다.
 
 ## 실행 방법
@@ -377,9 +380,9 @@ npx remotion render Demo ../docs/demo/ajik-meoreosseo-demo.mp4
 | 앱 | minSdk 28, targetSdk 34, compileSdk 36, Kotlin(안드로이드 기본 View), 가로 화면 |
 | 빌드 도구 | Android Studio 2026.2, Gradle 9.4.1(래퍼 포함), Android Gradle Plugin 9.2.1, JDK 17 이상 |
 | Pleos SDK | Vehicle 2.3.2, TextToSpeech 3.3.1, SpeechToText 3.3.1, NaviHelper 3.0.5 |
-| 그 밖의 라이브러리 | Anthropic Java SDK 3.3.0(레벨 테스트의 Claude 출제) |
+| 그 밖의 라이브러리 | Anthropic Java SDK 3.3.0(이야기 쓰기와 레벨 테스트의 출제) |
 
-- **인터넷**: 날마다 새로 쓰는 이야기(OpenAI), 강아지 목소리(ElevenLabs), 레벨 테스트의 출제(Claude)에 씁니다. 연결이 없거나
+- **인터넷**: 날마다 새로 쓰는 이야기와 레벨 테스트의 출제(Claude), 강아지 목소리(ElevenLabs)에 씁니다. 연결이 없거나
   서비스가 응답하지 않으면 차량 기본 음성(Pleos TextToSpeech), 앱에 든 기본 이야기, 기본 레벨 테스트로 끝까지 동작합니다.
 - **권한**: Pleos 차량 신호·음성·내비 권한은 설치할 때 주어집니다. 따로 눌러서 허용할 것은 없습니다.
 - **기어 P**: 설정 화면(어른용)은 정차 중(P)에만 열립니다. 달리는 동안에는 긴 자막을 숨기고 소리 위주로 전달합니다.
@@ -391,7 +394,7 @@ npx remotion render Demo ../docs/demo/ajik-meoreosseo-demo.mp4
   넘어가며, 이야기는 그대로 이어집니다.
 - **남은 시간**: 내비에 목적지를 정하면 "아직 멀었어?" 버튼이 남은 시간을 이야기 속 말로 대답하고, 목적지 이름이 새로 배울 낱말을 고르는 데 쓰입니다.
   목적지가 없어도 이야기는 진행됩니다.
-- 저장소의 APK는 새 이야기와 강아지 목소리가 켜진 상태로 빌드했습니다. 소스를 내려받아 그대로 빌드하면 `secrets.properties`가 없으므로
+- 저장소의 APK는 새 이야기, Claude가 출제하는 레벨 테스트, 강아지 목소리가 켜진 상태로 빌드했습니다. 소스를 내려받아 그대로 빌드하면 `secrets.properties`가 없으므로
   차량 기본 음성과 기본 이야기로 동작합니다(아래 "소스에서 빌드").
 
 ## 소스에서 빌드
@@ -403,8 +406,8 @@ Android Studio로 이 폴더를 열거나 터미널에서 빌드합니다.
 ./gradlew :app:assembleDebug       # 시험용 도구가 들어간 디버그 빌드
 ```
 
-- **API 키(선택)**: `secrets.example.properties`를 `secrets.properties`로 복사해 값을 채우면 새 이야기(OpenAI), 강아지 목소리(ElevenLabs),
-  레벨 테스트의 Claude 출제(`ANTHROPIC_API_KEY`)가 켜집니다. 저장소의 APK에는 Anthropic 키가 들어 있지 않아 레벨 테스트는 기본 테스트로 진행됩니다.
+- **API 키(선택)**: `secrets.example.properties`를 `secrets.properties`로 복사해 값을 채우면 새 이야기와 레벨 테스트의 Claude 출제(`ANTHROPIC_API_KEY`),
+  강아지 목소리(`ELEVENLABS_API_KEY`)가 켜집니다. 생성형 AI는 모두 Claude이고, 음성 합성만 ElevenLabs를 씁니다(Claude에는 음성 합성이 없습니다).
   `secrets.properties`는 저장소에 올리지 않습니다. `-PnoSecrets`를 붙이면 파일이 있어도 키를 넣지 않습니다.
 - **서명**: `keystore.properties`(storeFile, storePassword, keyAlias, keyPassword, 저장소에 올리지 않음)가 있으면 그 키로,
   없으면 안드로이드 디버그 키로 release를 서명합니다. 저장소의 APK는 디버그 키로 서명했습니다.
@@ -424,6 +427,7 @@ mediaPlayback)를 켜서 앱이 뒤로 가도 멈추지 않게 합니다. 서비
 | `... DEBUG_TOOLS --es do carVoice` / `cloudVoice` | 차량 기본 음성만 쓰기 / 되돌리기 |
 | `... DEBUG_TOOLS --es do story` | 오늘의 이야기 다시 쓰기 |
 | 앱 저장소의 `files/debug_answer.pcm` (16kHz·16비트·모노) | 다음 듣기 차례에 마이크 대신 이 소리를 인식기에 넣음 |
+| 앱 저장소의 `files/debug_answers/<말의 id>.pcm` | 그 말을 들을 차례마다 이 소리를 넣음(레벨 테스트처럼 무엇을 물을지 미리 알 수 없을 때) |
 
 경로 요청에 필요한 `NAVI_ROUTE_SEARCH` 권한은 디버그 빌드의 매니페스트(`app/src/debug/`)에만 있습니다.
 
@@ -439,7 +443,8 @@ mediaPlayback)를 켜서 앱이 뒤로 가도 멈추지 않게 합니다. 서비
 - `ui/WordBookDialog.kt` — 어른용 단어장 화면
 - `ui/LevelTestDialog.kt` — 어른용 레벨 테스트 화면
 - `story/Story.kt` — 기본 대본과 반응 대사, 말투별 대사
-- `story/StoryGenerator.kt` — OpenAI API로 그날의 이야기를 쓰고 내용을 검사해 저장
+- `ai/ClaudeApi.kt` — Claude API 호출(공식 Anthropic Java SDK): 정해진 JSON 형식으로 받기, 실패 이유
+- `story/StoryGenerator.kt` — Claude로 그날의 이야기를 쓰고 내용을 검사해 저장
 - `StoryService.kt` — 이야기가 흐르는 동안 앱이 뒤로 가도 멈추지 않게 하는 포그라운드 서비스
 - `story/StoryEngine.kt` — 진행, 반응 끼워 넣기, 벨트 대기, 도착 처리
 - `story/ChildName.kt` — 아이 이름·강아지 이름과 조사 처리
@@ -466,6 +471,6 @@ mediaPlayback)를 켜서 앱이 뒤로 가도 멈추지 않게 합니다. 서비
   알려 주지 않는 자리는 기다리지 않습니다. 에뮬레이터의 Virtual Console에는 뒷좌석 벨트를 바꾸는 카드가 없습니다.
 - 이야기 진행은 화면(`MainActivity`)이 맡고 포그라운드 서비스는 앱이 얼지 않게만 합니다. 시스템이 메모리 부족으로 화면을
   없애면 이야기가 끊길 수 있습니다(이야기 진행을 서비스로 옮기는 것은 다음 단계).
-- ElevenLabs와 OpenAI API 키는 평소 빌드에서 앱 안에 들어가므로 APK를 받은 사람이 꺼낼 수 있습니다. 평소 빌드는 시연용으로만 쓰고,
+- ElevenLabs와 Anthropic API 키는 평소 빌드에서 앱 안에 들어가므로 APK를 받은 사람이 꺼낼 수 있습니다. 평소 빌드는 시연용으로만 쓰고,
   밖에 내놓는 파일은 키를 뺀 빌드(아래 "빌드와 실행")를 씁니다. 정식 배포 때는 키를 서버에 두고 앱은 그 서버를 거치게 바꿔야 합니다.
 - ElevenLabs 기본 제공 목소리는 2026-12-31에 종료된다고 안내되어 있어, Voice ID를 코드에 넣지 않았습니다.

@@ -4,19 +4,17 @@ import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
-import com.ajikmeoreosseo.app.BuildConfig
+import com.ajikmeoreosseo.app.ai.ClaudeApi
 import com.ajikmeoreosseo.app.english.Korean
 import com.ajikmeoreosseo.app.english.Word
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
-import java.net.HttpURLConnection
-import java.net.URL
 import java.time.LocalDate
 import java.util.concurrent.Executors
 
 /**
- * 매일 새 이야기를 씁니다(OpenAI API, 기본 gpt-5-mini).
+ * 매일 새 이야기를 씁니다(Claude API, [ClaudeApi]).
  *
  * 세계관(구름이 된 차, 구름 강아지, 달빛 섬)은 같고, 가는 길의 모험이 날마다 다릅니다.
  * 오늘 배울 영어의 우리말 뜻을 이야기에 녹여 넣고, 강아지 말투([Tone])를 맞춥니다.
@@ -30,10 +28,9 @@ class StoryGenerator(context: Context) {
     private val dir = File(context.applicationContext.filesDir, "stories").apply { mkdirs() }
     private val main = Handler(Looper.getMainLooper())
     private val worker = Executors.newSingleThreadExecutor()
-    private val apiKey = BuildConfig.OPENAI_API_KEY.trim()
-    private val model = BuildConfig.OPENAI_MODEL.trim().ifEmpty { DEFAULT_MODEL }
+    private val client by lazy { ClaudeApi.client(TIMEOUT_SECONDS) }
 
-    var state: State = if (apiKey.isEmpty()) State.NO_KEY else State.IDLE
+    var state: State = if (!ClaudeApi.hasKey) State.NO_KEY else State.IDLE
         private set
 
     /** 마지막 실패 이유(짧은 우리말). */
@@ -78,7 +75,7 @@ class StoryGenerator(context: Context) {
         force: Boolean = false,
         onDone: (() -> Unit)? = null,
     ) {
-        if (apiKey.isEmpty()) {
+        if (!ClaudeApi.hasKey) {
             onDone?.invoke()
             return
         }
@@ -164,10 +161,7 @@ class StoryGenerator(context: Context) {
 
     private val waiting = ArrayList<() -> Unit>()
 
-    // region OpenAI API
-
-    /** 요청 실패. [status]가 0이면 통신 자체가 안 된 것입니다. */
-    private class ApiException(val status: Int, val body: String) : RuntimeException("HTTP $status: ${body.take(200)}")
+    // region Claude API
 
     private fun generate(
         tone: Tone,
@@ -182,42 +176,9 @@ class StoryGenerator(context: Context) {
     ): JSONObject {
         val prompt = userPrompt(tone, petName, words, theme, recentTitles, size, note) +
             if (feedback.isNullOrEmpty()) "" else "\n\n앞서 쓴 이야기에 아래 문제가 있었습니다. 같은 실수 없이 처음부터 새로 쓰세요:\n" + feedback.take(8).joinToString("\n") { "- $it" }
-        val body = JSONObject()
-            .put("model", model)
-            .put(
-                "messages",
-                JSONArray()
-                    .put(JSONObject().put("role", "system").put("content", SYSTEM_PROMPT))
-                    .put(JSONObject().put("role", "user").put("content", prompt)),
-            )
-            // 정해진 구조(JSON 스키마)로만 답하게 합니다.
-            .put(
-                "response_format",
-                JSONObject().put("type", "json_schema").put(
-                    "json_schema",
-                    JSONObject().put("name", "story").put("strict", true).put("schema", JSONObject(SCHEMA)),
-                ),
-            )
-            .put("max_completion_tokens", MAX_COMPLETION_TOKENS)
-            // 추론은 짧게(빠르기와 문장 품질의 균형). 추론을 지원하지 않는 모델이면 400이 오므로 그때는 빼고 다시 보냅니다.
-            .put("reasoning_effort", if (fast) "minimal" else "low")
-
-        val response = try {
-            post(body)
-        } catch (e: ApiException) {
-            if (e.status == 400 && e.body.contains("reasoning_effort")) {
-                body.remove("reasoning_effort")
-                post(body)
-            } else {
-                throw e
-            }
-        }
-
-        val choice = response.getJSONArray("choices").getJSONObject(0)
-        val message = choice.getJSONObject("message")
-        if (!message.isNull("refusal")) throw IllegalStateException("refusal")
-        if (choice.optString("finish_reason") == "length") throw IllegalArgumentException("too long")
-        val json = JSONObject(message.getString("content"))
+        // 정해진 구조(JSON 스키마)로만 답하게 합니다. 긴 이야기는 쓰는 데 오래 걸리므로 가볍게 생각하고 씁니다.
+        val text = ClaudeApi.json(client, SYSTEM_PROMPT, prompt, SCHEMA, if (fast) ClaudeApi.Effort.LOW else ClaudeApi.Effort.MEDIUM)
+        val json = JSONObject(text)
         validate(json)
         json.put("tone", tone.name)
         return json
@@ -277,29 +238,6 @@ class StoryGenerator(context: Context) {
     }
 
     // endregion
-
-    private fun post(body: JSONObject): JSONObject {
-        val connection = (URL(ENDPOINT).openConnection() as HttpURLConnection).apply {
-            requestMethod = "POST"
-            connectTimeout = 15_000
-            readTimeout = 90_000
-            doOutput = true
-            setRequestProperty("Authorization", "Bearer $apiKey")
-            setRequestProperty("Content-Type", "application/json")
-        }
-        try {
-            connection.outputStream.use { it.write(body.toString().toByteArray(Charsets.UTF_8)) }
-            val status = connection.responseCode
-            val stream = if (status in 200..299) connection.inputStream else connection.errorStream
-            val text = stream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }.orEmpty()
-            if (status !in 200..299) throw ApiException(status, text)
-            return JSONObject(text)
-        } catch (e: java.io.IOException) {
-            throw ApiException(0, e.message.orEmpty())
-        } finally {
-            connection.disconnect()
-        }
-    }
 
     private fun userPrompt(tone: Tone, petName: String, words: List<Word>, theme: String, recentTitles: List<String>, size: Size, note: String?): String {
         val toneLine = when (tone) {
@@ -444,29 +382,15 @@ class StoryGenerator(context: Context) {
         onChanged?.invoke()
     }
 
-    private fun reasonFor(error: Throwable): String = when {
-        error is ApiException -> when (error.status) {
-            0 -> "통신 오류"
-            401 -> "API 키 오류"
-            402, 429 -> "요금 한도 또는 크레딧 부족"
-            404 -> "모델 이름 오류"
-            else -> "서버 오류(${error.status})"
-        }
-        error.message == "refusal" -> "이야기를 만들지 못했어요(거절)"
-        error is IllegalArgumentException -> "이야기 형식이 맞지 않아요"
-        else -> "통신 오류"
+    private fun reasonFor(error: Throwable): String = when (error) {
+        is IllegalArgumentException, is org.json.JSONException -> "이야기 형식이 맞지 않아요"
+        else -> ClaudeApi.reason(error)
     }
 
     companion object {
         private const val TAG = "StoryGenerator"
-        private const val ENDPOINT = "https://api.openai.com/v1/chat/completions"
-
-        /**
-         * 기본 모델. secrets.properties의 OPENAI_MODEL로 바꿀 수 있습니다.
-         * gpt-5-nano가 더 싸지만 한국어 동화에서는 조사와 문장이 자주 깨져서 한 단계 위인 mini를 기본으로 둡니다(이야기 한 편 10원 안팎).
-         */
-        private const val DEFAULT_MODEL = "gpt-5-mini"
-        private const val MAX_COMPLETION_TOKENS = 8_000
+        /** 이야기 한 편을 기다리는 가장 긴 시간(초). */
+        private const val TIMEOUT_SECONDS = 90L
         private const val FAST_ABOVE_LINES = 30
         private const val KEY_NOTE = "note"
         private const val ASKED_ABOUT_DAY = "어땠"

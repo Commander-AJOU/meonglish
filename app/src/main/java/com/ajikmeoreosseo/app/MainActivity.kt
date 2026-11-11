@@ -18,6 +18,7 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import com.ajikmeoreosseo.app.ai.ClaudeApi
 import com.ajikmeoreosseo.app.car.CarEvent
 import com.ajikmeoreosseo.app.car.NaviSnapshot
 import com.ajikmeoreosseo.app.car.CarSignals
@@ -1140,12 +1141,8 @@ class MainActivity : Activity(), StoryEngine.Ui {
     private fun openLevelTest() {
         if (driving || levelTest != null) return
         // Anthropic API 키가 있으면 Claude가 아이의 대답을 보고 문제를 고르고, 없으면 앱에 든 기본 테스트로 합니다.
-        val key = BuildConfig.ANTHROPIC_API_KEY
-        val examiner = { seen: Set<String> ->
-            if (key.isNotBlank()) ClaudeExaminer(key, BuildConfig.ANTHROPIC_MODEL.ifBlank { ClaudeExaminer.DEFAULT_MODEL }, seen)
-            else LocalExaminer(seen)
-        }
-        levelTest = LevelTestDialog.show(this, coach, narrator, answers, ::render, claudeReady = key.isNotBlank(), examiner = examiner) {
+        val examiner = { seen: Set<String> -> if (ClaudeApi.hasKey) ClaudeExaminer(seen) else LocalExaminer(seen) }
+        levelTest = LevelTestDialog.show(this, coach, narrator, answers, ::render, claudeReady = ClaudeApi.hasKey, examiner = examiner) {
             levelTest = null
             if (!isFinishing && !isDestroyed) {
                 renderSettings()

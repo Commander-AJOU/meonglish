@@ -40,12 +40,18 @@ export const SECRET = { press: 3.5, calm1: 4.3, calm2: 9.2, end: 14.3, clipCalm:
 export const SENTENCE = { ask: 3.5, pass: 8.03, english: 9.46, card2: 11.6, end: 14.5, clipAsk: 3.77 };
 
 /** 낱말 장면 안의 시각(초): 규모 → 상황에 맞는 낱말 → 아이 속도에 맞춘 양. */
-export const WORDS = { pick: 5.4, pace: 10.6, end: 17.3 };
+export const WORDS = { pick: 5.4, pace: 10.6, end: 19.2 };
+
+/**
+ * 레벨 테스트 장면 안의 시각(초). clipStart·clipResult는 녹화한 레벨 테스트(level.mp4) 속 시각:
+ * 바나나 문제가 뜸(52.5) → 듣기(57.0) → 맞아(59.0) → 다음 문제(60.0) … 결과(122.0).
+ */
+export const LEVEL = { ask: 5.5, listen: 10.0, right: 12.0, choose: 13.3, result: 16.6, end: 21.6, clipStart: 47.0, clipResult: 121.5 };
 
 /*
  * 장면 순서: 주요 기능을 차례로 소개하되, 앞 장면을 보고 궁금해질 즈음에 그 답이 되는 장면이 오게 합니다.
  * 문제 → 제목 → 매일 새로 쓰는 동화(6) → 동화 사이 영어 수업, 통과하면 간식(4) → 간식으로 자라는 강아지(5)
- * → 배운 말의 복습(7)과 문장으로의 확장 → 무엇을 얼마나 배우는지(낱말) → 차의 움직임과 함께, 운전은 방해하지 않게(3, 내비)
+ * → 배운 말의 복습(7)과 문장으로의 확장 → 아이 수준을 알아보는 레벨 테스트 → 무엇을 얼마나 배우는지(낱말) → 차의 움직임과 함께, 운전은 방해하지 않게(3, 내비)
  * → 아이가 울 때(비밀 버튼) → 마무리(8).
  * 장면 6의 내비 부분(STORY.navi부터)은 떼어 깜빡이 장면 뒤에 둡니다.
  */
@@ -54,7 +60,8 @@ const T4 = T6 + STORY.navi;
 const T5 = T4 + 12;
 const T7 = T5 + 13.6 + FEED_INTRO;
 const TN = T7 + 7;
-const TW = TN + SENTENCE.end;
+const TL = TN + SENTENCE.end;
+const TW = TL + LEVEL.end;
 const T3 = TW + WORDS.end;
 const TNAV = T3 + TURN.end;
 const TS = TNAV + (STORY.end - STORY.navi);
@@ -70,6 +77,7 @@ export const SCENE = {
   three: { from: s(T3), duration: s(TURN.end) },
   /** 장면 6의 내비 부분(STORY.navi부터 끝까지)을 깜빡이 장면 뒤에 따로 보여 줍니다. */
   navi: { from: s(TNAV), duration: s(STORY.end - STORY.navi) },
+  level: { from: s(TL), duration: s(LEVEL.end) },
   words: { from: s(TW), duration: s(WORDS.end) },
   secret: { from: s(TS), duration: s(SECRET.end) },
   seven: { from: s(T7), duration: s(7) },
@@ -98,7 +106,11 @@ export const NARRATION: Cue[] = [
   // 낱말 장면
   { at: TW + 0.3, src: "demo/vo/a_v1b.mp3", seconds: 4.48, text: "단어만 천 개가 넘고, 표현과 문장도 삼백 개가 넘습니다." },
   { at: TW + WORDS.pick + 0.3, src: "demo/vo/a_v2.mp3", seconds: 4.32, text: "그중 무엇을 먼저 배울지는, 차가 지금 상황을 보고 고릅니다." },
-  { at: TW + WORDS.pace + 0.3, src: "demo/vo/a_v3.mp3", seconds: 6.0, text: "잘 따라 하면 조금 더, 힘들어하면 조금 덜. 아이의 속도에 맞춥니다." },
+  { at: TW + WORDS.pace + 0.3, src: "demo/vo/a_v3b.mp3", seconds: 7.68, text: "얼마나 배울지는 부모가 고릅니다. 10분마다 몇 개. 오래 갈수록, 그만큼 더 배웁니다." },
+  // 레벨 테스트
+  { at: TL + 0.3, src: "demo/vo/a_l1.mp3", seconds: 5.04, text: "아이마다 영어 수준은 다릅니다. 그래서 먼저, 레벨 테스트를 합니다." },
+  { at: TL + LEVEL.choose, src: "demo/vo/a_l2.mp3", seconds: 2.72, text: "AI가 대답을 보고, 다음 문제를 고릅니다." },
+  { at: TL + LEVEL.result + 0.3, src: "demo/vo/a_l3.mp3", seconds: 3.92, text: "그리고 다섯 레벨 가운데, 딱 맞는 곳에서 시작합니다." },
   { at: T5 + 0.3, src: "demo/vo/a_r5a.mp3", seconds: 6.0, text: "도착해서 아이가 “Here you are!” 하고 말하면, 강아지가 간식을 받아먹고 자랍니다." },
   { at: T5 + FEED_INTRO + 5.2, src: "demo/vo/a_n5b.mp3", seconds: 1.76, text: "이름은 아이가 지어 주고요." },
   { at: T5 + FEED_INTRO + 7.9, src: "demo/vo/a_n5d.mp3", seconds: 4.4, text: "집에는 새 물건이 열리고, 배운 단어는 카드로 모입니다." },
@@ -130,6 +142,9 @@ export const APP_VOICE: Cue[] = [
   { at: T4 + 6.0, src: "demo/app/right_answer.mp3", seconds: 0.9 },
   { at: T4 + 7.5, src: "demo/app/cloud_en.mp3", seconds: 0.8, rate: 0.8 },
   { at: T4 + 8.63, src: "demo/app/treat.mp3", seconds: 0.78 }, // "딩동!"까지만
+  // 레벨 테스트: 강아지의 질문과 "맞아!"(녹화한 화면과 같은 간격)
+  { at: TL + LEVEL.ask + 0.2, src: "demo/app/banana_q.mp3", seconds: 2.48 },
+  { at: TL + LEVEL.right, src: "demo/app/right_answer.mp3", seconds: 0.9 },
   // 장면 5: 아이가 "Here you are!"라고 말해 간식을 받은 강아지
   { at: T5 + 6.45, src: "demo/app/feed_ok.mp3", seconds: 3.12 },
   // 장면 6: 오늘 있었던 일을 묻고 위로하는 말, 내비 안내를 받아 주는 말("길 안내 요정이 오른쪽으로 돌아가래." 부분만)
@@ -160,6 +175,9 @@ export const SFX: Cue[] = [
   sfx(T3 - 0.1, "whoosh", 0.7), sfx(T3 + TURN.react - 0.1, "pop", 0.3),
   sfx(T3 + TURN.recallAt - 0.2, "whoosh", 0.7), sfx(T3 + TURN.recall - 0.05, "pop", 0.35), sfx(T3 + TURN.english - 0.05, "sparkle", 0.3, 1.3),
   sfx(T4 - 0.1, "whoosh", 0.7), sfx(T4 + 4.9, "pop", 0.45), sfx(T4 + 5.76, "ding", 0.2, 1.4),
+  // 레벨 테스트
+  sfx(TL - 0.1, "whoosh", 0.7), sfx(TL + LEVEL.listen, "pop", 0.4), sfx(TL + LEVEL.right - 0.25, "ding", 0.2, 1.4),
+  sfx(TL + LEVEL.result - 0.1, "whoosh", 0.5), sfx(TL + LEVEL.result + 1.4, "sparkle", 0.3, 1.3),
   // 낱말 장면
   sfx(TW - 0.1, "whoosh", 0.7), sfx(TW + 0.4, "sparkle", 0.25, 1.3), sfx(TW + WORDS.pick - 0.2, "whoosh", 0.5),
   sfx(TW + WORDS.pick + 0.6, "pop", 0.3), sfx(TW + WORDS.pick + 1.0, "pop", 0.3), sfx(TW + WORDS.pick + 1.4, "pop", 0.3), sfx(TW + WORDS.pick + 1.8, "pop", 0.3),

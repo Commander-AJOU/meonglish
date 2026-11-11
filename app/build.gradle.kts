@@ -36,8 +36,6 @@ android {
         buildConfigField("String", "ELEVENLABS_API_KEY", secret("ELEVENLABS_API_KEY"))
         buildConfigField("String", "ELEVENLABS_VOICE_ID", secret("ELEVENLABS_VOICE_ID"))
         buildConfigField("String", "ELEVENLABS_MODEL", secret("ELEVENLABS_MODEL"))
-        buildConfigField("String", "OPENAI_API_KEY", secret("OPENAI_API_KEY"))
-        buildConfigField("String", "OPENAI_MODEL", secret("OPENAI_MODEL"))
         buildConfigField("String", "ANTHROPIC_API_KEY", secret("ANTHROPIC_API_KEY"))
         buildConfigField("String", "ANTHROPIC_MODEL", secret("ANTHROPIC_MODEL"))
     }
@@ -77,7 +75,7 @@ dependencies {
     implementation("ai.pleos.playground:NaviHelper:3.0.5")
     implementation("ai.pleos.playground:SpeechToText:3.3.1")
 
-    // 레벨 테스트에서 Claude가 다음 문제를 고르고 레벨을 정합니다(공식 Anthropic Java SDK).
+    // 매일의 이야기 쓰기와 레벨 테스트의 출제에 Claude를 씁니다(공식 Anthropic Java SDK).
     implementation("com.anthropic:anthropic-java:3.3.0")
 
     testImplementation("junit:junit:4.13.2")
