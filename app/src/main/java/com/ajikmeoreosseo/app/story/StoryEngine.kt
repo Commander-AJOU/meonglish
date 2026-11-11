@@ -90,7 +90,11 @@ class StoryEngine(
     private var suspended: Sequence? = null
     private val lastFiredAt = HashMap<String, Long>()
     private val variantIndex = HashMap<String, Int>()
-    private val lastShoutAt = HashMap<Cue, Long>()
+    /** 이번 이동에서 반응마다 몇 번 했는지. */
+    private val firedThisTrip = HashMap<String, Int>()
+
+    /** 차가 움직였지만 아직 그 영어를 가르치지 않은 것. 다음 수업에서 먼저 가르칩니다. */
+    private val pendingCues = LinkedHashSet<Cue>()
     private var lastCaption: Pair<String, Boolean>? = null
     private var lastCalmAt = -CALM_DEBOUNCE_MS
     private var calmIndex = 0
@@ -126,7 +130,6 @@ class StoryEngine(
     private var wiperOn = false
     private var rearOccupied = false
     private var rearBuckled = false
-    private var beltConfirmedByAdult = false
     private var leftParkDuringStory = false
     private var announcedStop = false
     private var doorLineSaid = false
@@ -135,9 +138,7 @@ class StoryEngine(
     private var navi = NaviSnapshot()
     private var tripUpdatedAt = 0L
     private var lastNaviReactionAt = 0L
-    private var reactedTurn: String? = null
     private var reactedLimit: Int? = null
-    private var reactedCamera: String? = null
 
     init {
         narrator.onInterruptionEnded = { onNaviSpoke() }
@@ -212,11 +213,6 @@ class StoryEngine(
         pumpNow()
     }
 
-    /** 어른이 화면에서 "벨트 맸어요"를 눌렀을 때. 벨트 신호가 없는 차에서도 진행할 수 있게 합니다. */
-    fun confirmBeltByAdult() {
-        beltConfirmedByAdult = true
-        resumeFromBeltIfReady()
-    }
 
     // endregion
 
@@ -225,12 +221,19 @@ class StoryEngine(
     fun onCarEvent(event: CarEvent) {
         when (event) {
             is CarEvent.TurnSignal -> when (event.side) {
-                // 방향지시등만 그 순간에 바로 반응합니다. 나머지 신호는 읽던 문장이 끝난 뒤에 반응합니다.
-                CarEvent.TurnSignal.Side.LEFT ->
-                    react(KEY_TURN, COOLDOWN_TURN, Reactions.turnLeft, Cue.LEFT, shoutNow = true)
-                CarEvent.TurnSignal.Side.RIGHT ->
-                    react(KEY_TURN, COOLDOWN_TURN, Reactions.turnRight, Cue.RIGHT, shoutNow = true)
-                CarEvent.TurnSignal.Side.OFF -> Unit
+                // 깜빡이를 켜고 도는 동안은 운전자가 가장 집중할 때라 아무 말도 하지 않습니다.
+                // 깜빡이가 꺼지면(다 돌았으면) 잠시 뒤 이야기 속 말로 한 문장 덧붙이고, 영어는 다음 수업에서 가르칩니다.
+                CarEvent.TurnSignal.Side.LEFT, CarEvent.TurnSignal.Side.RIGHT -> {
+                    if (isStoryRunning()) rememberCue(if (event.side == CarEvent.TurnSignal.Side.LEFT) Cue.LEFT else Cue.RIGHT)
+                    pendingTurn = if (event.side == CarEvent.TurnSignal.Side.LEFT) Reactions.turnLeft else Reactions.turnRight
+                    handler.removeCallbacks(turnReaction)
+                    // 깜빡이가 꺼졌다는 신호가 오지 않는 경우를 위한 대비
+                    handler.postDelayed(turnReaction, TURN_REACT_FALLBACK_MS)
+                }
+                CarEvent.TurnSignal.Side.OFF -> if (pendingTurn != null) {
+                    handler.removeCallbacks(turnReaction)
+                    handler.postDelayed(turnReaction, AFTER_SIGNAL_OFF_MS)
+                }
             }
 
             is CarEvent.Wiper -> {
@@ -245,7 +248,10 @@ class StoryEngine(
                     handler.postDelayed(stopCheck, STOP_HOLD_MS)
                 } else if (announcedStop) {
                     announcedStop = false
-                    react(KEY_GO, 0, Reactions.goAgain, Cue.GO)
+                    // 막 출발하는 순간은 피하고, 조금 달린 뒤에 말합니다.
+                    rememberCue(Cue.GO)
+                    handler.removeCallbacks(goReaction)
+                    handler.postDelayed(goReaction, AFTER_GO_MS)
                 }
             }
 
@@ -254,7 +260,6 @@ class StoryEngine(
             is CarEvent.RearSeat -> {
                 rearOccupied = event.occupied
                 if (!rearOccupied) {
-                    beltConfirmedByAdult = false
                     // 벨트를 기다리던 중에 자리가 비면 더 기다릴 이유가 없습니다. 벨트를 맨 것은 아니므로 "찰칵!"은 하지 않습니다.
                     resumeFromBeltIfReady(buckled = false)
                 }
@@ -276,11 +281,42 @@ class StoryEngine(
     fun onNavi(snapshot: NaviSnapshot) {
         if (snapshot.remainingSec != navi.remainingSec) tripUpdatedAt = SystemClock.elapsedRealtime()
         navi = snapshot
-        // 내비 소리가 오디오 포커스를 안 가져가는 차를 위한 보조: 다음 안내가 코앞이면 안내 뒤 반응과 같은 말을 합니다.
-        val meters = snapshot.nextTurnMeters
-        if (snapshot.nextTurn != null && snapshot.nextTurn != reactedTurn && meters != null && meters in 1..NAVI_TURN_NEAR_METERS) {
-            onNaviSpoke()
+        // 내비 소리가 오디오 포커스를 안 가져가는 차를 위해: 회전이 가까워지면 말없이 기억해 둡니다.
+        val near = snapshot.nextTurnMeters
+        if (awaitingTurn == null && isStoryRunning() && snapshot.nextTurn in Reactions.naviTurnDoneWords && near != null && near <= TURN_AWAIT_METERS) {
+            awaitingTurn = snapshot.nextTurn!! to near
+            return
         }
+        // 회전 안내를 받은 뒤 그 길을 다 지나왔으면(다음 안내가 바뀌거나 멀어짐) 잠시 뒤 지난 일로 받아 줍니다.
+        val waiting = awaitingTurn ?: return
+        val meters = snapshot.nextTurnMeters
+        val passed = snapshot.nextTurn != waiting.first || meters == null || meters > waiting.second + TURN_PASSED_SLACK_METERS
+        if (passed) {
+            awaitingTurn = null
+            handler.removeCallbacks(afterTurn)
+            pendingTurnLine = waiting.first
+            handler.postDelayed(afterTurn, AFTER_TURN_MS)
+        } else if (meters < waiting.second) {
+            awaitingTurn = waiting.first to meters
+        }
+    }
+
+    /** 내비가 안내한 회전(안내 말, 안내를 들은 때의 남은 거리). 그 길을 지나면 이야기로 받아 줍니다. */
+    private var awaitingTurn: Pair<String, Int>? = null
+    private var pendingTurnLine: String? = null
+
+    private val afterTurn = Runnable {
+        val turn = pendingTurnLine ?: return@Runnable
+        pendingTurnLine = null
+        if (!isStoryRunning()) return@Runnable
+        val words = Reactions.naviTurnDoneWords[turn] ?: return@Runnable
+        val now = SystemClock.elapsedRealtime()
+        if (now - lastNaviReactionAt < NAVI_REACTION_COOLDOWN_MS) return@Runnable
+        val fired = firedThisTrip[KEY_NAVI_TURN] ?: 0
+        if (fired >= MAX_NAVI_TURN_REACTIONS) return@Runnable
+        firedThisTrip[KEY_NAVI_TURN] = fired + 1
+        lastNaviReactionAt = now
+        enqueue(aside(KEY_NAVI, pick(KEY_NAVI_TURN, Reactions.naviTurn).replace("{안내}", words), null, expiresAt = now + NAVI_FRESH_MS))
     }
 
     /**
@@ -297,17 +333,15 @@ class StoryEngine(
     }
 
     private fun naviStoryLine(): String? {
-        val camera = navi.cameraId
+        // 과속 카메라와 회전 직전에는 말을 보태지 않습니다(운전자가 가장 집중할 때). 회전은 다 돈 뒤에 받아 줍니다([afterTurn]).
         val cameraMeters = navi.cameraMeters
-        if (camera != null && camera != reactedCamera && cameraMeters != null && cameraMeters <= CAMERA_WARN_METERS) {
-            reactedCamera = camera
-            return pick(KEY_NAVI_CAMERA, Reactions.naviCamera)
-        }
+        if (cameraMeters != null && cameraMeters <= CAMERA_QUIET_METERS) return null
         val turn = navi.nextTurn
-        if (turn != null && turn != reactedTurn) {
-            reactedTurn = turn
-            val words = Reactions.naviTurnWords[turn] ?: return null
-            return pick(KEY_NAVI_TURN, Reactions.naviTurn).replace("{안내}", words)
+        val turnMeters = navi.nextTurnMeters
+        if (turn != null && turnMeters != null && turnMeters <= TURN_AWAIT_METERS && turn in Reactions.naviTurnDoneWords) {
+            val waiting = awaitingTurn
+            if (waiting == null || waiting.first != turn || turnMeters < waiting.second) awaitingTurn = turn to turnMeters
+            return null
         }
         val limit = navi.speedLimit
         if (limit != null && limit != reactedLimit) {
@@ -341,10 +375,15 @@ class StoryEngine(
             Position.PARK -> if (leftParkDuringStory) arrive()
             Position.REVERSE -> {
                 leftParkDuringStory = true
-                react(KEY_REVERSE, COOLDOWN_REVERSE, Reactions.reverse, Cue.BACK)
+                // 후진하는 동안은 말하지 않고, 후진을 마친 뒤에 말합니다.
+                rememberCue(Cue.BACK)
             }
             Position.DRIVE, Position.NEUTRAL -> leftParkDuringStory = true
             Position.UNKNOWN -> Unit
+        }
+        if (previous == Position.REVERSE && position != Position.REVERSE && position != Position.PARK) {
+            handler.removeCallbacks(reverseReaction)
+            handler.postDelayed(reverseReaction, AFTER_REVERSE_MS)
         }
         // 주행 중에 벨트가 풀린 채로 출발하지 않도록 한 번 더 확인합니다.
         if (previous == Position.PARK && position != Position.PARK && needsBelt()) pauseForBelt(Reactions.BELT_ASK)
@@ -356,12 +395,12 @@ class StoryEngine(
         if (buckled) {
             resumeFromBeltIfReady()
         } else if (wasBuckled && rearOccupied && isStoryRunning() && gear != Position.PARK) {
-            beltConfirmedByAdult = false
             pauseForBelt(Reactions.BELT_LOST)
         }
     }
 
-    private fun needsBelt() = rearOccupied && !rearBuckled && !beltConfirmedByAdult
+    /** 벨트는 차량 신호로만 판단합니다(운전자가 화면을 누르지 않도록). 차가 벨트 상태를 모르면 기다리지 않습니다([CarSignals]). */
+    private fun needsBelt() = rearOccupied && !rearBuckled
 
     private fun pauseForBelt(line: String) {
         if (phase == Phase.WAITING_BELT) return
@@ -372,7 +411,12 @@ class StoryEngine(
     private fun resumeFromBeltIfReady(buckled: Boolean = true) {
         if (phase != Phase.WAITING_BELT || needsBelt()) return
         setPhase(if (cursor >= script.size) Phase.HOLDING else Phase.TELLING)
-        if (buckled) enqueue(aside(KEY_BELT, Reactions.BELT_OK, Cue.BELT)) else pumpNow()
+        if (buckled) {
+            enqueue(aside(KEY_BELT, Reactions.BELT_OK, null))
+            rememberCue(Cue.BELT)
+        } else {
+            pumpNow()
+        }
     }
 
     private fun onStoppedForAWhile() {
@@ -451,7 +495,7 @@ class StoryEngine(
             Phase.TELLING -> advanceScript(now)
             Phase.HOLDING -> {
                 // 본문이 끝나고 도착을 기다리는 동안에는 놀이와 영어를 번갈아 합니다.
-                val lesson = if (holdTurn++ % 2 == 0) coach.nextLesson() else null
+                val lesson = if (holdTurn++ % 2 == 0) nextLesson() else null
                 if (lesson != null) startLesson(lesson, now) else say(nextInterlude(), isStory = true)
                 nextStoryAt = max(nextStoryAt, now + INTERLUDE_GAP_MS)
             }
@@ -495,7 +539,7 @@ class StoryEngine(
                 }
                 Beat.Gap -> {
                     // 장과 장 사이: 오늘 할 영어가 남아 있으면 한 가지 하고, 없으면 쉬어 갑니다.
-                    val lesson = coach.nextLesson()
+                    val lesson = nextLesson()
                     if (lesson != null) {
                         startLesson(lesson, now)
                     } else {
@@ -640,12 +684,7 @@ class StoryEngine(
 
     /** 언제 필요할지 모르는 마무리·반응·수업 대사를 시작할 때 받아 둡니다. */
     private fun warmUp() {
-        // 방향지시등을 켠 순간 바로 말하려면 그 한마디가 미리 준비돼 있어야 하므로 가장 먼저 받습니다.
-        listOf(Cue.LEFT, Cue.RIGHT).mapNotNull(coach::cueWord).forEach { word ->
-            prefetch(cueShout(word.korean))
-            prefetch(word.english)
-        }
-        (Reactions.calm.flatten() + ending + Reactions.warmUp + coach.commonLines()).forEach { prefetch(it) }
+        (Reactions.calm.flatten() + Reactions.recall.values + ending + Reactions.warmUp + coach.commonLines()).forEach { prefetch(it) }
     }
 
     private fun prefetch(template: String) = narrator.prefetch(render(template))
@@ -663,7 +702,7 @@ class StoryEngine(
             val lines = coach.finishCheck(word, passed, misheard = word.id in misheard)
             if (!passed) return lines
             pet.earn(1)
-            return if (quiet) lines else lines + Line(Reactions.treatEarned[0])
+            return if (quiet) lines else lines + announceTreat(Reactions.treatEarned[0])
         }
         val counts = coach.willCount(word)
         val extra = coach.finishWord(word)
@@ -671,14 +710,26 @@ class StoryEngine(
         // 듣기에서 통과하지 못했으면 진도는 이어 가고 간식은 반 조각입니다(마이크가 아이 소리를 못 듣는 차에서도 자라도록).
         if (!passed) {
             val completed = pet.earnHalf()
-            return if (quiet) extra else extra + Line(if (completed) Reactions.TREAT_HALF_COMPLETED else Reactions.TREAT_HALF)
+            return if (quiet) extra else extra + announceTreat(if (completed) Reactions.TREAT_HALF_COMPLETED else Reactions.TREAT_HALF)
         }
         pet.earn(if (extra.isNotEmpty()) TREATS_FOR_MASTERY else 1)
         if (quiet) return extra
         val index = variantIndex[KEY_TREAT] ?: 0
         variantIndex[KEY_TREAT] = index + 1
-        return extra + Line(Reactions.treatEarned[index % Reactions.treatEarned.size])
+        return extra + announceTreat(Reactions.treatEarned[index % Reactions.treatEarned.size])
     }
+
+    /**
+     * 간식이 생겼다는 말은 한 번 탈 때 처음 한 번만 합니다(차 안의 말수를 줄이려고). 그 뒤의 간식은 조용히 쌓이고,
+     * 도착할 때 모은 개수를 한 번에 알려 줍니다.
+     */
+    private fun announceTreat(line: String): List<Line> {
+        if (treatAnnounced) return emptyList()
+        treatAnnounced = true
+        return listOf(Line(line), Line(Reactions.TREATS_LATER))
+    }
+
+    private var treatAnnounced = false
 
     /**
      * 도착했을 때 모은 간식. 차가 아이 목소리를 들을 수 있으면 "Here you are!"라고 말해서 주게 하고,
@@ -701,12 +752,10 @@ class StoryEngine(
     // region 차량 신호 반응
 
     /**
-     * 차량 신호에 반응합니다. 읽던 문장이 끝난 뒤에 이야기 속 반응 대사를 말하고,
-     * 그 움직임의 영어([cue])가 오늘 남아 있으면 이어서 가르칩니다.
-     * 같은 반응은 [cooldownMs] 안에 다시 하지 않습니다.
-     *
-     * [shoutNow]이면(방향지시등) 기다리지 않고 그 순간에 바로 외칩니다("왼쪽! Left!").
-     * 바로 외쳤으면 긴 대사는 하지 않고, 바로 외칠 수 없을 때만 위의 방식으로 반응합니다.
+     * 차량 신호에 반응합니다. 운전자를 방해하지 않도록 그 순간에 끼어들지 않고, 읽던 문장이 끝난 뒤에
+     * 이야기 속 말로 한 문장만 덧붙입니다. 그 움직임의 영어([cue])는 다음 장 사이 수업에서 "아까 ~했지?" 하고
+     * 떠올리며 가르칩니다([nextLesson]). 같은 반응은 [cooldownMs] 안에, 그리고 한 번 탈 때 정해진 횟수
+     * ([MAX_REACTIONS_PER_TRIP])를 넘겨 하지 않습니다.
      *
      * 아무것도 하지 않았으면 false를 돌려줍니다.
      */
@@ -715,51 +764,56 @@ class StoryEngine(
         cooldownMs: Long,
         variants: List<String>,
         cue: Cue?,
-        shoutNow: Boolean = false,
     ): Boolean {
         if (phase != Phase.TELLING && phase != Phase.HOLDING) return false
-        if (shoutNow && cue != null && shout(cue)) return true
+        // 그 움직임의 영어는 이야기 반응을 했든 안 했든 다음 수업에서 가르칩니다.
+        cue?.let(::rememberCue)
 
         val now = SystemClock.elapsedRealtime()
         val last = lastFiredAt[key]
         if (last != null && now - last < cooldownMs) return false
+        // 같은 반응이 한 번 탈 때 너무 자주 나오지 않게 합니다(운전자도 함께 듣습니다).
+        val fired = firedThisTrip[key] ?: 0
+        if (fired >= (MAX_REACTIONS_PER_TRIP[key] ?: DEFAULT_MAX_REACTIONS)) return false
         lastFiredAt[key] = now
+        firedThisTrip[key] = fired + 1
 
         val index = variantIndex[key] ?: 0
         variantIndex[key] = index + 1
-        enqueue(aside(key, variants[index % variants.size], cue, expiresAt = now + REACTION_FRESH_MS))
+        enqueue(aside(key, variants[index % variants.size], null, expiresAt = now + REACTION_FRESH_MS))
         return true
+    }
+
+    /** 깜빡이를 켰던 쪽의 이야기 반응. 깜빡이가 꺼진 뒤에 말합니다. */
+    private var pendingTurn: List<String>? = null
+
+    private val turnReaction = Runnable {
+        val variants = pendingTurn ?: return@Runnable
+        pendingTurn = null
+        react(KEY_TURN, COOLDOWN_TURN, variants, null)
+    }
+    private val goReaction = Runnable { react(KEY_GO, 0, Reactions.goAgain, null) }
+    private val reverseReaction = Runnable { react(KEY_REVERSE, COOLDOWN_REVERSE, Reactions.reverse, null) }
+
+    /** 차가 [cue]처럼 움직였다고 적어 둡니다. 오늘 그 말을 아직 안 했으면 다음 수업에서 가르칩니다. */
+    private fun rememberCue(cue: Cue) {
+        if (coach.cueLesson(cue) != null) pendingCues += cue
     }
 
     /**
-     * 차가 움직인 바로 그 순간에 그 움직임을 우리말과 영어로 외칩니다.
-     * 지금 바로 말할 수 없으면(음성이 준비되지 않음, 영어 수업 꺼짐 등) false를 돌려줍니다.
+     * 장 사이(또는 도착을 기다릴 때)의 다음 수업. 아까 차가 움직인 일이 있으면 먼저 그것을 떠올리며 그 움직임의 영어를,
+     * 없으면 오늘의 복습·새 말을 가르칩니다.
      */
-    private fun shout(cue: Cue): Boolean {
-        // 아이 대답을 듣는 중에 외치면 강아지 목소리가 마이크로 들어갑니다. 그때는 듣기가 끝난 뒤에 말합니다.
-        if (listening) return false
-        val word = coach.cueWord(cue) ?: return false
-        val now = SystemClock.elapsedRealtime()
-        val last = lastShoutAt[cue]
-        if (last != null && now - last < SHOUT_DEBOUNCE_MS) return true
-
-        val clips = listOf(render(cueShout(word.korean)) to Lang.KO, word.english to Lang.EN)
-        val started = narrator.interject(clips) {
-            // 끼어든 말이 끝나면 읽던 문장의 말풍선으로 되돌립니다.
-            lastCaption?.let { (text, english) -> ui.onCaption(text, english) }
-            // 바로 외친 말은 짧게 끝내야 하므로 간식 알림은 생략합니다(간식은 그대로 생깁니다).
-            val extra = finishLesson(word, quiet = true)
-            if (extra.isNotEmpty()) enqueue(Sequence(KEY_LESSON, extra, urgent = true))
+    private fun nextLesson(): EnglishCoach.Lesson? {
+        while (pendingCues.isNotEmpty()) {
+            val cue = pendingCues.first()
+            pendingCues.remove(cue)
+            val lesson = coach.cueLesson(cue) ?: continue
+            val recall = Reactions.recall[cue] ?: return lesson
+            return EnglishCoach.Lesson(lesson.word, listOf(Line(recall)) + lesson.lines)
         }
-        if (!started) return false
-
-        lastShoutAt[cue] = now
-        Log.d(TAG, "shout: ${word.korean}! ${word.english}")
-        ui.onCaption(word.english, true)
-        return true
+        return coach.nextLesson()
     }
-
-    private fun cueShout(korean: String) = "$korean!"
 
     /** 한마디([text])와, 그 움직임([cue])에 해당하는 영어가 오늘 남아 있으면 그 수업까지 묶습니다. */
     private fun aside(key: String, text: String, cue: Cue?, expiresAt: Long = Long.MAX_VALUE): Sequence {
@@ -840,7 +894,8 @@ class StoryEngine(
         current = null
         suspended = null
         lastFiredAt.clear()
-        lastShoutAt.clear()
+        firedThisTrip.clear()
+        pendingCues.clear()
         lastCaption = null
         speaking = false
         listening = false
@@ -849,9 +904,15 @@ class StoryEngine(
         passed.clear()
         misheard.clear()
         lastNaviReactionAt = 0L
-        reactedTurn = null
+        awaitingTurn = null
+        pendingTurnLine = null
+        treatAnnounced = false
+        pendingTurn = null
+        handler.removeCallbacks(turnReaction)
+        handler.removeCallbacks(goReaction)
+        handler.removeCallbacks(reverseReaction)
+        handler.removeCallbacks(afterTurn)
         reactedLimit = null
-        reactedCamera = null
         cursor = 0
         endingCursor = 0
         interludeCursor = 0
@@ -860,7 +921,6 @@ class StoryEngine(
         resumeAt = 0L
         nextStoryAt = 0L
         chapterTitle = ""
-        beltConfirmedByAdult = false
         leftParkDuringStory = false
         announcedStop = false
         doorLineSaid = false
@@ -886,7 +946,6 @@ class StoryEngine(
         const val KEY_NAVI = "navi"
         const val KEY_NAVI_TURN = "naviTurn"
         const val KEY_NAVI_SPEED = "naviSpeed"
-        const val KEY_NAVI_CAMERA = "naviCamera"
         const val KEY_NAVI_REMAINING = "naviRemaining"
         const val KEY_TREAT = "treat"
         const val KEY_CALM = "calm"
@@ -911,7 +970,10 @@ class StoryEngine(
         const val REACTION_FRESH_MS = 12_000L
 
         /** 같은 움직임의 한마디를 이 시간 안에 또 외치지 않습니다(깜빡이 신호가 연달아 들어올 때). */
-        const val SHOUT_DEBOUNCE_MS = 4_000L
+
+        /** 한 번 탈 때 반응마다 하는 최대 횟수. 없으면 [DEFAULT_MAX_REACTIONS]. */
+        val MAX_REACTIONS_PER_TRIP = mapOf(KEY_TURN to 3, KEY_RAIN to 1, KEY_RAIN_END to 1, KEY_REVERSE to 1)
+        const val DEFAULT_MAX_REACTIONS = 2
 
         const val MIN_PAUSE_MS = 250L
 
@@ -921,8 +983,20 @@ class StoryEngine(
         // 내비 안내 뒤 이야기 속 반응: 40초에 한 번까지, 20초 안에 말하지 못하면 건너뜀. 다음 안내가 400m 안이면 보조로.
         const val NAVI_REACTION_COOLDOWN_MS = 40_000L
         const val NAVI_FRESH_MS = 20_000L
-        const val NAVI_TURN_NEAR_METERS = 400
-        const val CAMERA_WARN_METERS = 700
+        /** 이만큼 가까운 회전 안내는 말없이 기억했다가, 다 돈 뒤 [AFTER_TURN_MS] 지나서 이야기로 받아 줍니다. */
+        const val TURN_AWAIT_METERS = 1_000
+
+        /** 깜빡이가 꺼진 뒤(다 돈 뒤) 이야기 반응까지. 꺼졌다는 신호가 없으면 [TURN_REACT_FALLBACK_MS] 뒤에. */
+        const val AFTER_SIGNAL_OFF_MS = 3_000L
+        const val TURN_REACT_FALLBACK_MS = 15_000L
+        const val AFTER_GO_MS = 5_000L
+        const val AFTER_REVERSE_MS = 2_000L
+        const val TURN_PASSED_SLACK_METERS = 150
+        const val AFTER_TURN_MS = 4_000L
+        const val MAX_NAVI_TURN_REACTIONS = 4
+
+        /** 과속 카메라가 이만큼 가까우면 내비 안내 뒤에도 말을 보태지 않습니다. */
+        const val CAMERA_QUIET_METERS = 700
 
         const val LINE_GAP_MS = 900L
         const val REACTION_GAP_MS = 1_500L

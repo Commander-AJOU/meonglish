@@ -56,6 +56,9 @@ class CarSignals(context: Context, private val onEvent: (CarEvent) -> Unit) {
     private val rearSides = listOf(SeatValue.ROW_2_LEFT, SeatValue.ROW_2_RIGHT)
     private val occupied = HashMap<SeatValue, Boolean>()
     private val buckled = HashMap<SeatValue, Boolean>()
+
+    /** 자리마다 벨트 상태를 차가 알려 주는지. 모르는 자리(신호 없음, 실패)는 벨트를 기다리지 않습니다. */
+    private val beltKnown = HashMap<SeatValue, Boolean>()
     private val doorOpen = HashMap<DoorValue, Boolean>()
 
     fun start() {
@@ -164,7 +167,10 @@ class CarSignals(context: Context, private val onEvent: (CarEvent) -> Unit) {
 
             val belt = object : SeatBeltBuckledStateListener {
                 override fun onSeatBeltBuckledStateUpdated(isBuckled: Boolean?) = onBelt(side, isBuckled)
-                override fun onFailed(e: Exception) = warn("belt.$side", e)
+                override fun onFailed(e: Exception) {
+                    main.post { beltKnown[side] = false; publishRear() }
+                    warn("belt.$side", e)
+                }
             }
             api.registerSeatBeltBuckledState(area, belt)
             unregister += { api.unregisterSeatBeltBuckledState(area, belt) }
@@ -203,6 +209,7 @@ class CarSignals(context: Context, private val onEvent: (CarEvent) -> Unit) {
     private fun onBelt(side: SeatValue, value: Boolean?) {
         main.post {
             buckled[side] = value == true
+            beltKnown[side] = value != null
             publishRear()
         }
     }
@@ -210,7 +217,8 @@ class CarSignals(context: Context, private val onEvent: (CarEvent) -> Unit) {
     private fun publishRear() {
         val seated = rearSides.filter { occupied[it] == true }
         emitNow("rearSeat", CarEvent.RearSeat(seated.isNotEmpty()))
-        emitNow("rearBelt", CarEvent.RearBelt(seated.isNotEmpty() && seated.all { buckled[it] == true }))
+        // 벨트 상태를 알 수 없는 자리는 맨 것으로 봅니다(버튼 없이 차량 신호로만 판단하므로, 모르면 막지 않습니다).
+        emitNow("rearBelt", CarEvent.RearBelt(seated.isNotEmpty() && seated.all { buckled[it] == true || beltKnown[it] != true }))
     }
 
     private fun emit(key: String, event: CarEvent) {

@@ -211,7 +211,6 @@ class MainActivity : Activity(), StoryEngine.Ui {
         Clay.pressable(findViewById(R.id.wordbookBack), ::closeWordBook)
         Clay.pressable(findViewById(R.id.stopButton)) { engine.stop() }
         Clay.pressable(findViewById(R.id.howFarButton)) { engine.askHowFar() }
-        Clay.pressable(findViewById(R.id.beltButton)) { engine.confirmBeltByAdult() }
         Clay.pressable(findViewById(R.id.listenConfirm)) { engine.confirmAnswerByAdult() }
         Clay.pressable(findViewById(R.id.settingsBack), ::closeSettings)
         Clay.pressable(findViewById(R.id.settingsNameButton), ::showNameDialog)
@@ -224,6 +223,8 @@ class MainActivity : Activity(), StoryEngine.Ui {
             engine.calmChild()
             true
         }
+        // 달리는 중에는 화면을 오래 누르지 않도록 한 번 톡 누르면 됩니다(뒷자리 아이 손은 닿지 않습니다).
+        chapter.setOnClickListener { if (driving) engine.calmChild() }
 
         coach.onChanged = {
             renderHome()
@@ -702,13 +703,13 @@ class MainActivity : Activity(), StoryEngine.Ui {
             caption.visibility = View.INVISIBLE
             return
         }
+        // 달리는 중에는 말풍선을 숨깁니다. 이야기는 소리로만 전하고, 밤에 밝은 흰 말풍선이 눈부시지 않게 합니다.
+        if (driving) {
+            caption.visibility = View.INVISIBLE
+            return
+        }
         caption.visibility = View.VISIBLE
         when {
-            driving -> {
-                caption.text = getString(R.string.caption_driving)
-                caption.setTextSize(TypedValue.COMPLEX_UNIT_SP, 40f)
-                caption.setTextColor(getColor(R.color.hint))
-            }
             lastCaptionEnglish -> {
                 caption.text = text
                 caption.setTextSize(TypedValue.COMPLEX_UNIT_SP, 84f)

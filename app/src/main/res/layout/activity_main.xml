@@ -437,11 +437,6 @@
                 android:layout_marginBottom="32dp"
                 android:textColor="@color/hint"
                 android:textSize="34sp" />
-
-            <TextView
-                android:id="@+id/beltButton"
-                style="@style/Clay.Small"
-                android:text="@string/belt_confirm" />
         </LinearLayout>
 
         <!-- 아이가 말할 차례를 듣는 중. 정차 중에는 어른이 "잘 말했어요"로 통과시켜 줄 수 있습니다. -->
