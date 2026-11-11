@@ -14,7 +14,7 @@ import { SceneSecret } from "./scenes/SceneSecret";
 import { SceneSentence } from "./scenes/SceneSentence";
 import { SceneWords } from "./scenes/SceneWords";
 import { s } from "./theme";
-import { APP_VOICE, Cue, NARRATION, SCENE, SFX, TOTAL, musicVolume } from "./timeline";
+import { APP_VOICE, Cue, NARRATION, SCENE, SFX, STORY, TOTAL, musicVolume } from "./timeline";
 
 /** 장면이 바뀔 때 부드럽게 나타나고 사라지게 합니다. */
 const Fade: React.FC<{ duration: number; fadeOut: boolean; children: React.ReactNode }> = ({ duration, fadeOut, children }) => {
@@ -26,15 +26,24 @@ const Fade: React.FC<{ duration: number; fadeOut: boolean; children: React.React
   return <AbsoluteFill style={{ opacity }}>{children}</AbsoluteFill>;
 };
 
+/** 장면 6의 내비 부분만(STORY.navi부터). 깜빡이 장면 뒤에 따로 보여 줍니다. */
+const NaviPart: React.FC = () => (
+  <Sequence from={-s(STORY.navi)} layout="none">
+    <Scene6 duration={s(STORY.end)} />
+  </Sequence>
+);
+
+/** 시간 순서대로(timeline.ts의 장면 순서). */
 const LATER = [
-  { scene: SCENE.three, node: <Scene3 />, fadeOut: true },
+  { scene: SCENE.six, node: <Scene6 duration={s(STORY.end)} />, fadeOut: true },
   { scene: SCENE.four, node: <Scene4 />, fadeOut: true },
-  { scene: SCENE.words, node: <SceneWords duration={SCENE.words.duration} />, fadeOut: true },
   { scene: SCENE.five, node: <Scene5 duration={SCENE.five.duration} />, fadeOut: true },
-  { scene: SCENE.six, node: <Scene6 duration={SCENE.six.duration} />, fadeOut: true },
-  { scene: SCENE.secret, node: <SceneSecret />, fadeOut: true },
   { scene: SCENE.seven, node: <Scene7 />, fadeOut: true },
   { scene: SCENE.sentence, node: <SceneSentence />, fadeOut: true },
+  { scene: SCENE.words, node: <SceneWords duration={SCENE.words.duration} />, fadeOut: true },
+  { scene: SCENE.three, node: <Scene3 />, fadeOut: true },
+  { scene: SCENE.navi, node: <NaviPart />, fadeOut: true },
+  { scene: SCENE.secret, node: <SceneSecret />, fadeOut: true },
   { scene: SCENE.eight, node: <Scene8 duration={SCENE.eight.duration} />, fadeOut: false },
 ];
 
