@@ -42,13 +42,11 @@ class Pet(context: Context) {
 
     val isGrown: Boolean get() = level >= MAX_LEVEL
 
-    /** 강아지가 자란 만큼 영어도 어려워집니다: 꼬마 강아지(30)부터 짧은 표현, 소년 강아지(60)부터 문장. */
-    val englishFloor: Int
-        get() = when {
-            level >= STAGE_FROM[3] -> 3
-            level >= STAGE_FROM[2] -> 2
-            else -> 1
-        }
+    /**
+     * 강아지가 자란 만큼 영어도 어려워집니다. 강아지의 다섯 모습이 영어의 다섯 레벨과 짝을 이룹니다:
+     * 아기 강아지(10)부터 모든 단어, 꼬마 강아지(30)부터 짧은 표현, 소년 강아지(60)부터 문장, 다 자란 강아지(100)부터 묻는 말과 긴 문장.
+     */
+    val englishFloor: Int get() = stage
 
     /** 말투: 아기(1~2단계), 꼬마(3~4단계), 다 자람(5단계). */
     val tone: Tone

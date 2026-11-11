@@ -23,7 +23,10 @@ import com.ajikmeoreosseo.app.car.NaviSnapshot
 import com.ajikmeoreosseo.app.car.CarSignals
 import com.ajikmeoreosseo.app.car.TripInfo
 import com.ajikmeoreosseo.app.english.AnswerListener
+import com.ajikmeoreosseo.app.english.ClaudeExaminer
 import com.ajikmeoreosseo.app.english.EnglishCoach
+import com.ajikmeoreosseo.app.english.LocalExaminer
+import com.ajikmeoreosseo.app.english.Levels
 import com.ajikmeoreosseo.app.english.Situation
 import com.ajikmeoreosseo.app.pet.House
 import com.ajikmeoreosseo.app.pet.Pet
@@ -43,6 +46,7 @@ import com.ajikmeoreosseo.app.ui.Clay
 import com.ajikmeoreosseo.app.ui.HouseView
 import com.ajikmeoreosseo.app.ui.IrisView
 import com.ajikmeoreosseo.app.ui.SceneView
+import com.ajikmeoreosseo.app.ui.LevelTestDialog
 import com.ajikmeoreosseo.app.ui.WordBookDialog
 
 /**
@@ -97,6 +101,11 @@ class MainActivity : Activity(), StoryEngine.Ui {
     private lateinit var settingsNameValue: TextView
     private lateinit var settingsPetNameValue: TextView
     private lateinit var settingsEnglishValue: TextView
+    private lateinit var settingsPaceValue: TextView
+    private lateinit var settingsPaceRow: LinearLayout
+    private lateinit var settingsPaceWarning: TextView
+    /** 열려 있는 레벨 테스트. 차가 움직이면 닫습니다. */
+    private var levelTest: AlertDialog? = null
     private lateinit var settingsVoiceValue: TextView
     private lateinit var settingsStoryValue: TextView
     private lateinit var settingsNoteValue: TextView
@@ -172,6 +181,9 @@ class MainActivity : Activity(), StoryEngine.Ui {
         settingsNameValue = findViewById(R.id.settingsNameValue)
         settingsPetNameValue = findViewById(R.id.settingsPetNameValue)
         settingsEnglishValue = findViewById(R.id.settingsEnglishValue)
+        settingsPaceValue = findViewById(R.id.settingsPaceValue)
+        settingsPaceRow = findViewById(R.id.settingsPaceRow)
+        settingsPaceWarning = findViewById(R.id.settingsPaceWarning)
         settingsVoiceValue = findViewById(R.id.settingsVoiceValue)
         settingsStoryValue = findViewById(R.id.settingsStoryValue)
         settingsNoteValue = findViewById(R.id.settingsNoteValue)
@@ -214,6 +226,7 @@ class MainActivity : Activity(), StoryEngine.Ui {
         Clay.pressable(findViewById(R.id.settingsNameButton), ::showNameDialog)
         Clay.pressable(findViewById(R.id.settingsPetNameButton), ::showPetNameDialog)
         Clay.pressable(findViewById(R.id.settingsEnglishButton)) { WordBookDialog.show(this, coach) }
+        Clay.pressable(findViewById(R.id.settingsLevelTestButton), ::openLevelTest)
         Clay.pressable(findViewById(R.id.settingsStoryButton)) { prepareStory(force = true) }
         Clay.pressable(findViewById(R.id.settingsNoteButton), ::showNoteDialog)
         // 부모의 비밀 버튼: 평범한 장 제목처럼 보이지만 길게 누르면 강아지가 우는 아이를 달랩니다.
@@ -724,6 +737,7 @@ class MainActivity : Activity(), StoryEngine.Ui {
                 // 설정, 글자 입력, 간식 주기는 차를 세웠을 때만 합니다.
                 settingsButton.isEnabled = !driving
                 settingsButton.alpha = if (driving) 0.35f else 1f
+                if (driving) levelTest?.dismiss()
                 if (driving && settings.visibility == View.VISIBLE) closeSettings()
                 if (driving && houseScreen.visibility == View.VISIBLE) closeHouse()
                 if (driving && wordbookScreen.visibility == View.VISIBLE) closeWordBook()
@@ -1048,15 +1062,21 @@ class MainActivity : Activity(), StoryEngine.Ui {
                 val next = summary.nextNew.joinToString(", ") { pick ->
                     pick.word.english + (pick.reason?.let { " ($it)" } ?: "")
                 }
-                val pace = when (val rate = summary.successRate) {
-                    null -> getString(R.string.settings_english_pace_unknown, summary.newPerTrip)
-                    else -> getString(R.string.settings_english_pace, (rate * 100).toInt(), summary.newPerTrip)
+                val rate = when (val value = summary.successRate) {
+                    null -> getString(R.string.settings_english_rate_unknown)
+                    else -> getString(R.string.settings_english_rate, (value * 100).toInt())
                 }
-                getString(R.string.settings_english_on, summary.level, summary.mastered.size, summary.learning.size) +
-                    "\n" + getString(R.string.settings_english_next, next.ifEmpty { "-" }) + "\n" + pace
+                val tested = when (val day = summary.testedOn) {
+                    null -> getString(R.string.settings_english_untested)
+                    else -> getString(R.string.settings_english_tested, day.monthValue, day.dayOfMonth)
+                }
+                getString(R.string.settings_english_on, summary.level, Levels.NAMES[summary.level - 1], summary.mastered.size, summary.learning.size) +
+                    "\n" + getString(R.string.settings_english_next, next.ifEmpty { "-" }) + "\n" + rate + "\n" + tested
             } else {
                 getString(R.string.settings_english_off)
             }
+
+        renderPace(summary.perTen)
 
         settingsVoiceValue.text = voiceStatus
 
@@ -1073,6 +1093,64 @@ class MainActivity : Activity(), StoryEngine.Ui {
             stories.state == StoryGenerator.State.NO_KEY -> getString(R.string.settings_note_no_key)
             today == null -> getString(R.string.settings_note_empty)
             else -> getString(R.string.settings_note_set, today)
+        }
+    }
+
+    /** 배우는 양: 10분마다 영어 몇 개(복습 포함). 1~5 가운데 고르고, 5개에는 주의 글을 진하게 보여 줍니다. */
+    private fun renderPace(perTen: Int) {
+        settingsPaceValue.text = getString(
+            R.string.settings_pace_value,
+            perTen,
+            coach.expectedLessons(EnglishCoach.DEFAULT_TRIP_MINUTES),
+            coach.expectedLessons(60),
+        )
+        if (settingsPaceRow.childCount == 0) {
+            for (count in 1..EnglishCoach.MAX_PER_TEN) {
+                val option = TextView(this).apply {
+                    text = getString(R.string.settings_pace_option, count)
+                    textSize = 34f
+                    gravity = Gravity.CENTER
+                    includeFontPadding = false
+                    minWidth = dp(150)
+                    setPadding(dp(30), 0, dp(30), dp(10))
+                }
+                Clay.pressable(option) {
+                    coach.setPerTen(count)
+                    renderSettings()
+                }
+                settingsPaceRow.addView(
+                    option,
+                    LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, dp(104)).apply { if (count > 1) marginStart = dp(18) },
+                )
+            }
+        }
+        for (index in 0 until settingsPaceRow.childCount) {
+            val option = settingsPaceRow.getChildAt(index) as TextView
+            val selected = index + 1 == perTen
+            option.setBackgroundResource(if (selected) R.drawable.clay_blue else R.drawable.clay_white)
+            option.setTextColor(getColor(if (selected) R.color.text else R.color.ink))
+        }
+        val most = perTen >= EnglishCoach.MAX_PER_TEN
+        settingsPaceWarning.setTextColor(getColor(if (most) R.color.kid_pink else R.color.hint))
+    }
+
+    private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
+
+    /** 레벨 테스트: 강아지가 묻고 아이가 영어로 대답해 레벨(1~5)을 알아봅니다. 차를 세웠을 때만 엽니다. */
+    private fun openLevelTest() {
+        if (driving || levelTest != null) return
+        // Anthropic API 키가 있으면 Claude가 아이의 대답을 보고 문제를 고르고, 없으면 앱에 든 기본 테스트로 합니다.
+        val key = BuildConfig.ANTHROPIC_API_KEY
+        val examiner = { seen: Set<String> ->
+            if (key.isNotBlank()) ClaudeExaminer(key, BuildConfig.ANTHROPIC_MODEL.ifBlank { ClaudeExaminer.DEFAULT_MODEL }, seen)
+            else LocalExaminer(seen)
+        }
+        levelTest = LevelTestDialog.show(this, coach, narrator, answers, ::render, claudeReady = key.isNotBlank(), examiner = examiner) {
+            levelTest = null
+            if (!isFinishing && !isDestroyed) {
+                renderSettings()
+                renderHome()
+            }
         }
     }
 

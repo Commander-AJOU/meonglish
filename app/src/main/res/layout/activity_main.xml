@@ -818,10 +818,49 @@
                     android:id="@+id/settingsEnglishValue"
                     style="@style/SettingsBody" />
 
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:id="@+id/settingsEnglishButton"
+                        style="@style/Clay.Small"
+                        android:text="@string/settings_english_open" />
+
+                    <!-- 레벨 테스트: 강아지가 묻고 아이가 영어로 대답해 레벨(1~5)을 알아봅니다. -->
+                    <TextView
+                        android:id="@+id/settingsLevelTestButton"
+                        style="@style/Clay.Small"
+                        android:layout_marginStart="24dp"
+                        android:background="@drawable/clay_pink"
+                        android:text="@string/settings_level_test" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- 배우는 양: 10분마다 영어 몇 개(복습 포함, 1~5) -->
+            <LinearLayout style="@style/SettingsCard">
+
                 <TextView
-                    android:id="@+id/settingsEnglishButton"
-                    style="@style/Clay.Small"
-                    android:text="@string/settings_english_open" />
+                    style="@style/SettingsTitle"
+                    android:text="@string/settings_pace" />
+
+                <TextView
+                    android:id="@+id/settingsPaceValue"
+                    style="@style/SettingsBody" />
+
+                <LinearLayout
+                    android:id="@+id/settingsPaceRow"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal" />
+
+                <TextView
+                    android:id="@+id/settingsPaceWarning"
+                    style="@style/SettingsBody"
+                    android:layout_marginTop="20dp"
+                    android:layout_marginBottom="0dp"
+                    android:text="@string/settings_pace_warning" />
             </LinearLayout>
 
             <LinearLayout style="@style/SettingsCard">

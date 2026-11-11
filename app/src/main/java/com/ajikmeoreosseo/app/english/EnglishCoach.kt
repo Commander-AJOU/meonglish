@@ -19,11 +19,13 @@ import java.time.LocalDate
  * 새 말은 세 갈래에서 번갈아 꺼냅니다: 지금 레벨의 손으로 쓴 말, 낱말(레벨이 올라도 계속), 그리고
  * 익힌 낱말을 엮어 만든 문장([Sentences]). 그래서 낱말이 늘수록 배울 문장도 늘어 거의 끝이 없습니다.
  *
- * 무엇을 얼마나 배울지는 아이와 상황에 맞춥니다.
+ * 무엇을 얼마나 배울지는 아이와 상황에 맞춥니다(레벨 테스트 + 타면서 맞추기).
+ *  - 레벨: 난이도는 다섯 단계([Levels])입니다. 어른이 설정에서 레벨 테스트([LevelTest], [applyLevelTest])를 하거나
+ *    직접 고르고, 강아지가 자랄 때마다 한 단계씩 올라갑니다([setMinLevel]). 절반도 못 맞히는 동안에는 올리지 않습니다.
  *  - 어떤 낱말을: 지금 상황(비, 시간대, 계절, 가는 곳, 오늘 이야기)에 맞는 말을 먼저, 나머지는 주제를 돌아가며([WordPicker]).
- *  - 얼마나: 요즘 따라 말하기를 잘 통과하면 새 말을 하나 더, 절반도 못 하면 줄이고 익숙한 복습부터([newPerTrip]).
+ *  - 얼마나: 어른이 설정에서 "10분마다 몇 개"([perTen], 1~5)를 고릅니다. 이동이 길수록 그만큼 더 배웁니다([nextLesson]).
+ *    요즘 절반도 못 맞히면 새 말을 줄이고 익숙한 복습부터 묻습니다.
  *  - 이동 중에도: 연달아 못 하면 그날 새 말을 그만 내고, 연달아 맞히면 하나를 더 냅니다([record]).
- *  - 단계: 절반도 못 맞히는 동안에는 강아지가 자라도 어려운 말로 넘어가지 않습니다([setMinLevel]).
  *
  * 어른은 단어장 화면에서 "이미 알아요" / "다시 배우기"로 바로잡을 수 있습니다.
  *
@@ -39,15 +41,17 @@ class EnglishCoach(context: Context) {
     data class Summary(
         val enabled: Boolean,
         val level: Int,
-        val minLevel: Int,
         val mastered: List<WordState>,
         val learning: List<WordState>,
         val demoDayOffset: Int,
         /** 요즘 따라 말하기 통과율(0~1). 아직 잰 것이 적으면 null. */
         val successRate: Float?,
-        /** 다음에 탈 때 새로 배울 말의 수와 그 말들(상황에 맞아 고른 말은 이유가 붙습니다). */
-        val newPerTrip: Int,
+        /** 10분마다 배우는 영어의 수(복습 포함, 1~5). */
+        val perTen: Int,
+        /** 다음에 탈 때 새로 배울 말들(상황에 맞아 고른 말은 이유가 붙습니다). */
         val nextNew: List<WordPicker.Pick>,
+        /** 마지막으로 레벨 테스트를 한 날(없으면 null). */
+        val testedOn: LocalDate?,
     )
 
     /** [checks]: 꿈 구슬이 된 뒤 오랜만의 확인을 통과한 횟수. */
@@ -60,12 +64,19 @@ class EnglishCoach(context: Context) {
 
     var enabled = true
         private set
+    /** 지금 난이도(1~[Levels.MAX]). */
     var level = 1
         private set
 
-    /** 강아지가 자란 만큼의 레벨 최소값. 강아지가 꼬마가 되면 2, 소년이 되면 3. 저장하지 않고 매번 강아지에서 받습니다. */
-    var minLevel = 1
+    /** 강아지가 자라며 이미 올려 준 레벨. 강아지가 더 자라 이 값보다 커질 때만 레벨을 다시 올립니다. */
+    private var appliedFloor = 0
+
+    /** 10분마다 배우는 영어의 수(복습 포함). 어른이 설정에서 고릅니다. */
+    var perTen = DEFAULT_PER_TEN
         private set
+
+    /** 마지막으로 레벨 테스트를 한 날(epoch day). 안 했으면 [NEVER]. */
+    private var testedDay = NEVER
 
     /** 수업을 여는 한마디. 강아지 말투에 따라 바뀝니다. */
     var opening = DEFAULT_OPENING
@@ -84,6 +95,12 @@ class EnglishCoach(context: Context) {
     private var passStreak = 0
     private var easedOff = false
     private var bonusGiven = false
+    private var tripStartedAt = 0L
+    private var lessonsGiven = 0
+    private var bonusQuota = 0
+
+    /** 지금 시각(ms). 이동을 시작한 뒤 지난 시간으로 "10분마다 몇 개"를 맞춥니다. */
+    var clock: () -> Long = { android.os.SystemClock.elapsedRealtime() }
 
     /** 진도나 설정이 바뀔 때마다 호출됩니다. */
     var onChanged: (() -> Unit)? = null
@@ -103,30 +120,47 @@ class EnglishCoach(context: Context) {
         passStreak = 0
         easedOff = false
         bonusGiven = false
+        tripStartedAt = clock()
+        lessonsGiven = 0
+        bonusQuota = 0
         if (!enabled) return
         levelUpIfReady()
 
-        val reviews = dueReviews()
-        val picks = freshPicks()
-        val fresh = picks.map { it.word }
+        // 긴 이동에도 모자라지 않게 넉넉히 줄을 세워 두고, 실제로 얼마나 할지는 지난 시간이 정합니다([nextLesson]).
+        val reviews = dueReviews(MAX_REVIEWS_QUEUED)
+        val picks = freshPicks(if (struggling()) MAX_NEW_STRUGGLING else MAX_NEW_QUEUED)
+        tripQueue += interleave(reviews, picks.map { it.word })
         android.util.Log.d(
             "EnglishCoach",
-            "trip: rate=${successRate()} new=${newPerTrip()} reviews=${reviews.map { it.english }} " +
+            "trip: level=$level perTen=$perTen rate=${successRate()} reviews=${reviews.map { it.english }} " +
                 "fresh=${picks.map { it.word.english + (it.reason?.let { r -> "($r)" } ?: "") }}",
         )
+    }
 
+    /** 복습할 말을 먼저, 그 사이사이에 새 말. 요즘 힘들어하면 복습 둘에 새 말 하나꼴로 섞습니다. */
+    private fun interleave(reviews: List<Word>, fresh: List<Word>): List<Word> {
         val a = ArrayDeque(reviews)
         val b = ArrayDeque(fresh)
-        while (a.isNotEmpty() || b.isNotEmpty()) {
-            a.removeFirstOrNull()?.let(tripQueue::add)
-            b.removeFirstOrNull()?.let(tripQueue::add)
+        val perNew = if (struggling()) 2 else 1
+        return buildList {
+            while (a.isNotEmpty() || b.isNotEmpty()) {
+                repeat(perNew) { a.removeFirstOrNull()?.let(::add) }
+                b.removeFirstOrNull()?.let(::add)
+            }
         }
     }
+
+    /**
+     * [minutes]분 가는 동안 하게 될 수업의 수: 출발하자마자 하나, 그 뒤로 10분마다 [perTen]개꼴.
+     * 가는 시간을 모르면 [DEFAULT_TRIP_MINUTES]분으로 봅니다.
+     */
+    fun expectedLessons(minutes: Int? = tripMinutes): Int = 1 + (minutes ?: DEFAULT_TRIP_MINUTES).coerceAtLeast(0) * perTen / 10
 
     /** 오늘 타면 만날 말(복습 + 새 말)을 진도에 손대지 않고 미리 봅니다. 그날의 이야기에 이 말들을 녹여 넣을 때 씁니다. */
     fun plannedWords(): List<Word> {
         if (!enabled) return emptyList()
-        return dueReviews() + freshPicks().map { it.word }
+        val count = expectedLessons()
+        return interleave(dueReviews(count), freshPicks(count).map { it.word }).take(count)
     }
 
     /**
@@ -168,11 +202,13 @@ class EnglishCoach(context: Context) {
             if (tripQueue.size < before) return listOf(Line(EASE_OFF))
         }
         if (passStreak >= BONUS_AFTER_PASSES && !bonusGiven && !easedOff) {
-            val extra = freshPicks(limit = MAX_NEW_PER_TRIP + 2).map { it.word }
+            val extra = freshPicks(limit = MAX_NEW_QUEUED + 2).map { it.word }
                 .firstOrNull { it.id != word.id && it !in tripQueue && it !in metThisTrip }
             if (extra != null) {
                 bonusGiven = true
-                tripQueue.addLast(extra)
+                // 덤으로 하나 더: 바로 다음 차례에, 10분마다 정한 수와 따로 셉니다.
+                tripQueue.addFirst(extra)
+                bonusQuota += 1
                 return listOf(Line(BONUS))
             }
         }
@@ -184,24 +220,8 @@ class EnglishCoach(context: Context) {
 
     private fun struggling(): Boolean = successRate()?.let { it < STRUGGLING_BELOW } == true
 
-    /**
-     * 한 번 탈 때 새로 배울 말의 수. 잘 통과하면 4, 보통이면 3, 절반도 못 하면 2.
-     * 5분이 안 되는 짧은 이동에는 2개까지만 냅니다.
-     */
-    fun newPerTrip(): Int {
-        val rate = successRate()
-        val base = when {
-            rate == null -> MAX_NEW_PER_TRIP
-            rate >= DOING_WELL_FROM -> MAX_NEW_PER_TRIP + 1
-            rate < STRUGGLING_BELOW -> MAX_NEW_PER_TRIP - 1
-            else -> MAX_NEW_PER_TRIP
-        }
-        val minutes = tripMinutes
-        return if (minutes != null && minutes < SHORT_TRIP_MINUTES) minOf(base, 2) else base
-    }
-
-    /** 오늘 복습할 말. 요즘 힘들어하면 거의 다 익힌(가장 익숙한) 말부터 물어 성공으로 시작하게 합니다. */
-    private fun dueReviews(): List<Word> {
+    /** 오늘 복습할 말을 [limit]개까지. 요즘 힘들어하면 거의 다 익힌(가장 익숙한) 말부터 물어 성공으로 시작하게 합니다. */
+    private fun dueReviews(limit: Int): List<Word> {
         // 오랜만에 다시 확인할 꿈 구슬은 한 번 탈 때 하나만, 가장 오래된 것부터 맨 앞에 둡니다.
         val polish = progress.keys.mapNotNull(WordBank::find).filter { isCheck(it) }
             .sortedBy { progress.getValue(it.id).day }.take(MAX_CHECKS_PER_TRIP)
@@ -211,16 +231,25 @@ class EnglishCoach(context: Context) {
         } else {
             polish + due.drop(polish.size).sortedBy { progress.getValue(it.id).day }
         }
-        val minutes = tripMinutes
-        return ordered.take(if (minutes != null && minutes < SHORT_TRIP_MINUTES) 2 else MAX_REVIEWS_PER_TRIP)
+        return ordered.take(limit)
     }
 
-    /** 동화 장과 장 사이에 넣을 다음 수업. 오늘 할 것이 더 없으면 null. */
+    /** 이동을 시작한 뒤 지금까지 해도 되는 수업의 수: 출발하자마자 하나, 그 뒤로 10분마다 [perTen]개꼴. */
+    private fun allowedSoFar(): Int {
+        val minutes = (clock() - tripStartedAt).coerceAtLeast(0L) / 60_000f
+        return 1 + (minutes * perTen / 10f).toInt() + bonusQuota
+    }
+
+    /**
+     * 동화 장과 장 사이에 넣을 다음 수업. 오늘 할 것이 더 없거나, 10분마다 정한 수([perTen])를 이미 채웠으면 null
+     * (그때는 쉬어 가고, 시간이 지나면 다시 나옵니다).
+     */
     fun nextLesson(): Lesson? {
-        if (!enabled) return null
+        if (!enabled || lessonsGiven >= allowedSoFar()) return null
         while (true) {
             val word = tripQueue.removeFirstOrNull() ?: return null
             if (practicedToday(word) || (isMastered(word) && !isCheck(word))) continue
+            lessonsGiven += 1
             return lessonFor(word, short = false)
         }
     }
@@ -239,7 +268,7 @@ class EnglishCoach(context: Context) {
     fun cueWord(cue: Cue): Word? {
         if (!enabled) return null
         return WordBank.words
-            .filter { it.cue == cue && (it.level >= level || cue == Cue.HOW_FAR) }
+            .filter { it.cue == cue && (it.level >= Levels.kind(level) || cue == Cue.HOW_FAR) }
             .firstOrNull { !isMastered(it) }
     }
 
@@ -274,7 +303,7 @@ class EnglishCoach(context: Context) {
             extra += Line("이 말은 이제 완전히 알았네! 꿈 구슬이 하나 생겼어.")
         }
         if (levelUpIfReady()) {
-            extra += Line("영어 실력이 쑥 자랐어! 다음부터는 조금 더 긴 말을 배워 보자.")
+            extra += Line("영어 실력이 쑥 자랐어! 다음부터는 조금 더 어려운 영어를 배워 보자.")
         }
         save()
         return extra
@@ -344,13 +373,13 @@ class EnglishCoach(context: Context) {
         return Summary(
             enabled = enabled,
             level = level,
-            minLevel = minLevel,
             mastered = states.filter { it.mastered },
             learning = states.filter { !it.mastered }.sortedByDescending { it.dueToday },
             demoDayOffset = dayOffset,
             successRate = successRate(),
-            newPerTrip = newPerTrip(),
-            nextNew = if (enabled) freshPicks() else emptyList(),
+            perTen = perTen,
+            nextNew = if (enabled) freshPicks(NEXT_NEW_SHOWN) else emptyList(),
+            testedOn = if (testedDay == NEVER) null else LocalDate.ofEpochDay(testedDay - dayOffset),
         )
     }
 
@@ -359,25 +388,45 @@ class EnglishCoach(context: Context) {
         save()
     }
 
-    /** 어른이 아이 수준에 맞춰 시작 레벨을 고릅니다. 강아지가 자라서 정해진 최소값 아래로는 내려가지 않습니다. */
+    /** 어른이 아이 수준에 맞춰 레벨을 고릅니다(1~[Levels.MAX]). 어른이 고른 값을 그대로 따릅니다. */
     fun setLevel(value: Int) {
-        level = value.coerceIn(minLevel, WordBank.MAX_LEVEL)
+        level = value.coerceIn(1, Levels.MAX)
+        save()
+    }
+
+    /** 10분마다 배우는 영어의 수(복습 포함)를 고릅니다(1~[MAX_PER_TEN]). */
+    fun setPerTen(value: Int) {
+        perTen = value.coerceIn(1, MAX_PER_TEN)
         save()
     }
 
     /**
-     * 강아지 단계에 따른 레벨 최소값을 정합니다. 지금 레벨이 그보다 낮으면 끌어올립니다.
-     * 레벨이 실제로 올랐으면 true.
+     * 레벨 테스트 결과를 반영합니다: 레벨을 [result]로 맞추고, 아이가 맞힌 말([known])은 이미 아는 말이므로
+     * 꿈 구슬로 넣어 다시 가르치지 않습니다(2주 뒤 꿈 구슬 닦기에서 한 번 더 확인합니다).
      */
-    fun setMinLevel(value: Int): Boolean {
-        val wanted = value.coerceIn(1, WordBank.MAX_LEVEL)
+    fun applyLevelTest(result: Int, known: List<Word>) {
+        level = result.coerceIn(1, Levels.MAX)
+        testedDay = today()
+        val today = today()
+        known.forEach { progress[it.id] = Progress(STAGES_TO_MASTER, today, true) }
+        save()
+    }
+
+    /**
+     * 강아지가 자란 만큼 레벨을 올립니다([floor]는 강아지 모습에 따른 레벨). 강아지가 새 모습으로 자랐을 때 한 번만 올리므로,
+     * 그 뒤에 어른이 직접 고르거나 레벨 테스트로 낮춘 레벨은 그대로 남습니다. 레벨이 실제로 올랐으면 true.
+     */
+    fun setMinLevel(floor: Int): Boolean {
+        val wanted = floor.coerceIn(1, Levels.MAX)
+        if (wanted <= appliedFloor) return false
         // 요즘 절반도 못 맞히면 강아지가 자라도 어려운 말로 넘어가지 않습니다. 다시 잘하게 되면 그때 올립니다
         // (이야기를 시작할 때마다 다시 확인합니다).
-        minLevel = if (wanted > level && struggling()) level else wanted
-        if (level >= minLevel) return false
-        level = minLevel
+        if (wanted > level && struggling()) return false
+        appliedFloor = wanted
+        val raised = level < wanted
+        if (raised) level = wanted
         save()
-        return true
+        return raised
     }
 
     /** "이미 알아요": 꿈 구슬로 만들어 다시 나오지 않게 합니다. */
@@ -488,9 +537,9 @@ class EnglishCoach(context: Context) {
         return today() >= state.day + wait
     }
 
-    /** 손으로 쓴 말 가운데 아직 안 만난 것(차의 움직임과 묶인 말 제외). */
-    private fun unseenFixed(atLevel: Int) =
-        WordBank.words.filter { it.level == atLevel && it.cue == null && it.id !in progress }
+    /** 난이도가 [difficulty]인 단어장의 말 가운데 아직 안 만난 것(차의 움직임과 묶인 말 제외). */
+    private fun unseenAt(difficulty: Int) =
+        WordBank.words.filter { it.cue == null && it.id !in progress && Levels.of(it) == difficulty }
 
     /** 익힌 낱말 가운데 [tags]에 해당하는 것. 먼저 익힌 순서대로. */
     private fun masteredOf(vararg tags: Tag): List<Word> =
@@ -499,30 +548,34 @@ class EnglishCoach(context: Context) {
             .sortedBy { progress.getValue(it.id).day }
 
     /**
-     * 이번에 새로 배울 말. 여러 갈래에서 하나씩 번갈아 꺼냅니다.
-     *   1) 지금 레벨과 그 아래 레벨의 손으로 쓴 말   2) 낱말(레벨 2부터도 계속)   3) 익힌 낱말로 만든 문장(레벨 2부터)
-     * 낱말은 상황에 맞는 것을 먼저, 나머지는 주제를 돌아가며 고릅니다([WordPicker]).
+     * 이번에 새로 배울 말을 [limit]개까지. 여러 갈래에서 하나씩 번갈아 꺼냅니다.
+     *   레벨 1: 쉬운 주제의 단어만          레벨 2: 모든 단어
+     *   레벨 3~5: 그 레벨까지의 손으로 쓴 표현·문장 + 단어(계속) + 익힌 낱말로 만든 문장([Sentences])
+     * 단어는 상황에 맞는 것을 먼저, 나머지는 주제를 돌아가며 고릅니다([WordPicker]).
      */
-    private fun freshPicks(limit: Int = newPerTrip()): List<WordPicker.Pick> {
+    private fun freshPicks(limit: Int): List<WordPicker.Pick> {
         val learned = progress.keys.mapNotNull(WordBank::find).filter { it.topic.isNotEmpty() }.groupingBy { it.topic }.eachCount()
-        val vocabulary = WordPicker.order(unseenFixed(1), learned, situation())
+        val unseenWords = WordBank.words.filter { it.level == 1 && it.cue == null && it.id !in progress }
+        // 레벨 1에서는 쉬운 주제만. 다 배웠으면 나머지 단어로 넘어갑니다.
+        val pool = if (level == 1) unseenWords.filter { Levels.of(it) == 1 }.ifEmpty { unseenWords } else unseenWords
+        val vocabulary = WordPicker.order(pool, learned, situation())
         val sources = ArrayList<Iterator<WordPicker.Pick>>()
-        if (level == 1) {
+        if (level < FIRST_PHRASE_LEVEL) {
             sources += vocabulary.iterator()
         } else {
             // 지금 레벨의 말과 함께, 아래 레벨에서 아직 못 만난 표현도 계속 냅니다. 강아지가 빨리 자라 레벨이
-            // 먼저 올라가도(60단계에 문장) 짧은 표현이 통째로 건너뛰어지지 않게 하려는 것입니다.
-            for (fixedLevel in level downTo 2) {
-                sources += unseenFixed(fixedLevel).map { WordPicker.Pick(it, null) }.iterator()
+            // 먼저 올라가도 짧은 표현이 통째로 건너뛰어지지 않게 하려는 것입니다.
+            for (difficulty in level downTo FIRST_PHRASE_LEVEL) {
+                sources += unseenAt(difficulty).map { WordPicker.Pick(it, null) }.iterator()
             }
             sources += vocabulary.iterator()
             sources += Sentences.candidates(
                 nouns = masteredOf(Tag.NOUN, Tag.MASS),
                 adjectives = masteredOf(Tag.ADJ),
                 colors = masteredOf(Tag.COLOR),
-                level = level,
+                level = Levels.kind(level),
                 seen = progress.keys,
-            ).map { WordPicker.Pick(it, null) }.iterator()
+            ).filter { Levels.of(it) <= level }.map { WordPicker.Pick(it, null) }.iterator()
         }
         val fresh = ArrayList<WordPicker.Pick>()
         while (fresh.size < limit && sources.any { it.hasNext() }) {
@@ -533,9 +586,9 @@ class EnglishCoach(context: Context) {
         return fresh
     }
 
-    /** 지금 레벨의 손으로 쓴 말을 다 꺼냈으면 다음 레벨로 올라갑니다(낱말은 많아서 보통 강아지가 자라며 올라갑니다). */
+    /** 지금 레벨의 말을 다 꺼냈으면 다음 레벨로 올라갑니다(단어는 많아서 보통 강아지가 자라며 올라갑니다). */
     private fun levelUpIfReady(): Boolean {
-        if (level >= WordBank.MAX_LEVEL || unseenFixed(level).isNotEmpty()) return false
+        if (level >= Levels.MAX || unseenAt(level).isNotEmpty()) return false
         level += 1
         return true
     }
@@ -546,8 +599,12 @@ class EnglishCoach(context: Context) {
 
     private fun load() {
         enabled = prefs.getBoolean(KEY_ENABLED, true)
-        level = prefs.getInt(KEY_LEVEL, 1).coerceIn(1, WordBank.MAX_LEVEL)
-        // 최소값은 저장하지 않습니다. 앱이 켜질 때 강아지 단계에서 다시 받습니다.
+        // 예전(세 단계: 낱말·짧은 표현·문장)에 저장된 레벨은 다섯 단계의 1·3·4로 옮깁니다.
+        level = if (prefs.contains(KEY_STAGE)) prefs.getInt(KEY_STAGE, 1) else listOf(1, 3, 4)[prefs.getInt(KEY_LEVEL, 1).coerceIn(1, 3) - 1]
+        level = level.coerceIn(1, Levels.MAX)
+        appliedFloor = prefs.getInt(KEY_FLOOR, 0)
+        perTen = prefs.getInt(KEY_PER_TEN, DEFAULT_PER_TEN).coerceIn(1, MAX_PER_TEN)
+        testedDay = prefs.getLong(KEY_TESTED, NEVER)
         dayOffset = prefs.getInt(KEY_DAY_OFFSET, 0)
         prefs.getString(KEY_RECENT, "").orEmpty().takeLast(RECENT_WINDOW).forEach { recent.addLast(it == '1') }
         val saved = runCatching { JSONObject(prefs.getString(KEY_WORDS, "{}") ?: "{}") }.getOrDefault(JSONObject())
@@ -567,7 +624,10 @@ class EnglishCoach(context: Context) {
         }
         prefs.edit()
             .putBoolean(KEY_ENABLED, enabled)
-            .putInt(KEY_LEVEL, level)
+            .putInt(KEY_STAGE, level)
+            .putInt(KEY_FLOOR, appliedFloor)
+            .putInt(KEY_PER_TEN, perTen)
+            .putLong(KEY_TESTED, testedDay)
             .putInt(KEY_DAY_OFFSET, dayOffset)
             .putString(KEY_WORDS, words.toString())
             .apply()
@@ -583,12 +643,23 @@ class EnglishCoach(context: Context) {
         /** 1번째, 2번째, 3번째 만남 뒤에 며칠 있다가 다시 물을지. */
         private val REVIEW_AFTER_DAYS = listOf(1, 1, 2)
 
-        private const val MAX_REVIEWS_PER_TRIP = 4
+        /** 표현과 문장을 배우기 시작하는 레벨. 그 아래(1·2)는 단어만 배웁니다. */
+        private const val FIRST_PHRASE_LEVEL = 3
+
+        // 얼마나 배울지: 10분마다 [perTen]개(복습 포함)
+        const val DEFAULT_PER_TEN = 3
+        const val MAX_PER_TEN = 5
+        /** 가는 시간을 모를 때(목적지를 안 정했을 때) 이만큼 간다고 봅니다. */
+        const val DEFAULT_TRIP_MINUTES = 15
+        /** 한 번 탈 때 줄 세워 두는 복습과 새 말의 최대 수. 1시간 넘게 가도 새 말은 이만큼까지만 배웁니다. */
+        private const val MAX_REVIEWS_QUEUED = 16
+        private const val MAX_NEW_QUEUED = 12
+        private const val MAX_NEW_STRUGGLING = 4
+        private const val NEXT_NEW_SHOWN = 3
 
         /** 꿈 구슬이 된 뒤 다시 확인하기까지의 날수: 2주 뒤, 그리고 그로부터 한 달 뒤. */
         private val CHECK_AFTER_DAYS = listOf(14, 30)
         private const val MAX_CHECKS_PER_TRIP = 1
-        private const val MAX_NEW_PER_TRIP = 3
         private const val MAX_RECAP_WORDS = 4
 
         // 아이 실력에 맞춘 양 조절
@@ -596,7 +667,6 @@ class EnglishCoach(context: Context) {
         private const val MIN_SAMPLES = 4
         private const val DOING_WELL_FROM = 0.8f
         private const val STRUGGLING_BELOW = 0.5f
-        private const val SHORT_TRIP_MINUTES = 5
         private const val EASE_OFF_AFTER_MISSES = 2
         private const val BONUS_AFTER_PASSES = 3
         private const val THINK_MS = 2_800L
@@ -625,6 +695,10 @@ class EnglishCoach(context: Context) {
 
         private const val KEY_ENABLED = "enabled"
         private const val KEY_LEVEL = "level"
+        private const val KEY_STAGE = "stage"
+        private const val KEY_FLOOR = "floor"
+        private const val KEY_PER_TEN = "perTen"
+        private const val KEY_TESTED = "testedDay"
         private const val KEY_DAY_OFFSET = "dayOffset"
         private const val KEY_WORDS = "words"
         private const val KEY_RECENT = "recent"

@@ -12,7 +12,7 @@ import android.widget.TextView
 import com.ajikmeoreosseo.app.BuildConfig
 import com.ajikmeoreosseo.app.R
 import com.ajikmeoreosseo.app.english.EnglishCoach
-import com.ajikmeoreosseo.app.english.WordBank
+import com.ajikmeoreosseo.app.english.Levels
 
 /**
  * 어른이 보는 영어 단어장. 차를 세웠을 때만 엽니다.
@@ -44,14 +44,14 @@ object WordBookDialog {
             sheet.addView(
                 text(
                     context,
-                    "레벨 ${summary.level} · 꿈 구슬 ${summary.mastered.size}개 · 배우는 중 ${summary.learning.size}개",
+                    "레벨 ${summary.level}(${Levels.NAMES[summary.level - 1]}) · 꿈 구슬 ${summary.mastered.size}개 · 배우는 중 ${summary.learning.size}개",
                     28f,
                 )
             )
             sheet.addView(
                 text(
                     context,
-                    "서로 다른 날에 네 번 만나면 꿈 구슬이 돼요. 꿈 구슬이 된 말은 다시 나오지 않고, 그 자리에 새 말이 나와요.",
+                    "서로 다른 날에 네 번 만나면 꿈 구슬이 돼요. 꿈 구슬이 된 말은 날마다의 복습에서 빠지고, 2주 뒤와 한 달 뒤에 한 번씩 다시 물어봐요.",
                     24f,
                     color = R.color.hint,
                 )
@@ -64,15 +64,15 @@ object WordBookDialog {
                 }
             )
 
-            sheet.addView(text(context, "아이 수준", 28f, bold = true, topMargin = pad))
+            sheet.addView(text(context, "아이 수준 (레벨 1~${Levels.MAX})", 28f, bold = true, topMargin = pad))
             val levels = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL }
-            LEVEL_NAMES.forEachIndexed { index, name ->
+            Levels.NAMES.forEachIndexed { index, name ->
                 val level = index + 1
                 levels.addView(
-                    pill(context, name, summary.level == level) {
+                    pill(context, "$level $name", summary.level == level) {
                         coach.setLevel(level)
                         render()
-                    }.apply { if (level < summary.minLevel) alpha = 0.4f },
+                    },
                     LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
                         if (index > 0) marginStart = pad / 3
                         topMargin = pad / 3
@@ -80,12 +80,10 @@ object WordBookDialog {
                 )
             }
             sheet.addView(levels)
-            sheet.addView(text(context, LEVEL_HINTS[summary.level - 1], 24f, color = R.color.hint))
-            if (summary.minLevel > 1) {
-                sheet.addView(
-                    text(context, "강아지가 자라서 레벨 ${summary.minLevel}부터 배워요. 그 아래로는 내려가지 않아요.", 24f, color = R.color.hint)
-                )
-            }
+            sheet.addView(text(context, Levels.HINTS[summary.level - 1], 24f, color = R.color.hint))
+            sheet.addView(
+                text(context, "설정의 레벨 테스트로 알아볼 수도 있어요. 강아지가 새 모습으로 자랄 때마다 한 레벨씩 올라가요.", 24f, color = R.color.hint)
+            )
 
             section(activity, context, sheet, "오늘 복습할 말", due, coach, ::render)
             section(activity, context, sheet, "배우는 중", later, coach, ::render)
@@ -129,7 +127,7 @@ object WordBookDialog {
             row.setOnClickListener {
                 AlertDialog.Builder(activity)
                     .setTitle(item.word.english)
-                    .setMessage("${item.word.korean} · 레벨 ${item.word.level}")
+                    .setMessage("${item.word.korean} · 레벨 ${Levels.of(item.word)}")
                     .setPositiveButton("이미 알아요") { _, _ ->
                         coach.markMastered(item.word)
                         refresh()
@@ -174,14 +172,4 @@ object WordBookDialog {
         }
     }
 
-    private val LEVEL_NAMES = listOf("처음이에요", "조금 알아요", "잘해요")
-    private val LEVEL_HINTS = listOf(
-        "레벨 1: Puppy, Moon 같은 낱말부터 배워요.",
-        "레벨 2: Let's fly!, Good night. 같은 짧은 표현을 배워요.",
-        "레벨 3: The puppy is flying. 같은 문장을 배워요.",
-    )
-
-    init {
-        check(LEVEL_NAMES.size == WordBank.MAX_LEVEL)
-    }
 }

@@ -37,6 +37,7 @@ data class Word(
  * 말을 더하거나 고치려면 이 파일만 바꾸면 됩니다(id는 진도 저장에 쓰이니 바꾸지 마세요).
  */
 object WordBank {
+    /** 말의 종류는 셋(1 낱말, 2 짧은 표현, 3 문장). 난이도 다섯 단계는 [Levels]가 이 종류와 주제로 정합니다. */
     const val MAX_LEVEL = 3
 
     private const val VOCABULARY = """

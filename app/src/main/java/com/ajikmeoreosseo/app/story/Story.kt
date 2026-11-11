@@ -284,7 +284,7 @@ object Reactions {
     const val FULLY_GROWN = "{멍이} 다 자랐어! 이제 {이름의} 가장 든든한 친구야. 그래도 간식은 계속 좋아해."
 
     /** 자라면서 영어 레벨 최소값이 올랐을 때 덧붙이는 말. */
-    const val GROWN_HARDER_ENGLISH = "그리고 {멍이} 자라서, 이제 조금 더 긴 영어도 배울 수 있어!"
+    const val GROWN_HARDER_ENGLISH = "그리고 {멍이} 자라서, 이제 조금 더 어려운 영어도 배울 수 있어!"
 
     /** 이야기를 시작하자마자 미리 받아 둘 반응 대사(ElevenLabs 사용 시 첫 반응이 늦지 않도록). */
     /**
