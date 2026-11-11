@@ -18,6 +18,14 @@ export const STORY = {
 };
 
 /**
+ * 도입(장면 1) 안의 시각(초): "아직 멀었어?" → 운전에 집중해야 하는 부모와 지루한 아이(driver) → 결국 쥐여 주는 태블릿(tablet)
+ * → 영어 교육에 대한 바람(worry) → 화면 대신 옆에서 같이 배우는 친구(friend) → 제목으로(end).
+ */
+export const INTRO = { driver: 6.6, tablet: 12.0, worry: 17.3, friend: 23.3, end: 31.2 };
+/** 제목 장면(장면 2)이 시작하는 때. 동그란 전환이 도입 끝과 겹치도록 조금 일찍. */
+const T2 = INTRO.end - 0.4;
+
+/**
  * 깜빡이 장면(장면 3) 안의 시각(초): 켜짐 → 꺼짐 → 이야기 반응(녹화한 화면과 같은 간격) → 다음 수업에서 떠올리기.
  */
 export const TURN = { on: 2.1, off: 8.17, react: 11.25, recallAt: 14.6, recall: 15.0, meaning: 17.5, english: 19.7, end: 21.6 };
@@ -41,7 +49,7 @@ export const WORDS = { pick: 5.4, pace: 10.6, end: 17.3 };
  * → 아이가 울 때(비밀 버튼) → 마무리(8).
  * 장면 6의 내비 부분(STORY.navi부터)은 떼어 깜빡이 장면 뒤에 둡니다.
  */
-const T6 = 13;
+const T6 = T2 + 6.4;
 const T4 = T6 + STORY.navi;
 const T5 = T4 + 12;
 const T7 = T5 + 13.6 + FEED_INTRO;
@@ -54,8 +62,8 @@ const T8 = TS + SECRET.end;
 
 /** 장면이 시작하는 프레임. 장면 2는 동그란 전환이 겹치도록 조금 일찍 시작합니다. */
 export const SCENE = {
-  one: { from: 0, duration: s(7) },
-  two: { from: s(6.6), duration: s(6.4) },
+  one: { from: 0, duration: s(INTRO.end) },
+  two: { from: s(T2), duration: s(6.4) },
   six: { from: s(T6), duration: s(STORY.navi) },
   four: { from: s(T4), duration: s(12) },
   five: { from: s(T5), duration: s(13.6 + FEED_INTRO) },
@@ -78,7 +86,11 @@ export type Cue = { at: number; src: string; seconds: number; text?: string; rat
 /** 내레이터(어른 목소리). text는 자막으로도 나옵니다. */
 export const NARRATION: Cue[] = [
   { at: 0.5, src: "demo/vo/a_n1.mp3", seconds: 3.12, text: "차에 타면 꼭 나오는 말. “아직 멀었어?”" },
-  { at: 7.3, src: "demo/vo/a_n2.mp3", seconds: 4.88, text: "이제 그 시간이, 영어를 배우고 강아지를 키우는 시간이 됩니다." },
+  { at: INTRO.driver + 0.2, src: "demo/vo/a_i1.mp3", seconds: 4.72, text: "운전하는 부모는 앞만 봐야 하고, 뒷자리의 아이는 금세 지루해집니다." },
+  { at: INTRO.tablet + 0.3, src: "demo/vo/a_i2.mp3", seconds: 4.56, text: "그래서 결국 태블릿을 쥐여 주지만, 마음 한편은 편하지 않습니다." },
+  { at: INTRO.worry + 0.3, src: "demo/vo/a_i3.mp3", seconds: 5.28, text: "영어 공부는 일찍부터 시키고 싶은데, 매일 차 안의 시간은 그냥 흘러갑니다." },
+  { at: INTRO.friend + 0.3, src: "demo/vo/a_i4.mp3", seconds: 6.88, text: "화면만 쥐여 주는 대신, 옆자리에서 같이 공부하며 영어 동화를 들려주는 친구가 있다면 어떨까요?" },
+  { at: T2 + 0.7, src: "demo/vo/a_n2b.mp3", seconds: 4.56, text: "이동하는 시간이, 강아지와 함께 영어를 배우는 동화 시간이 됩니다." },
   { at: T3 + 0.3, src: "demo/vo/a_r3a.mp3", seconds: 4.72, text: "운전자가 깜빡이를 켜고 도는 동안, 강아지는 조용히 기다립니다." },
   { at: T3 + 8.25, src: "demo/vo/a_r3b.mp3", seconds: 2.96, text: "다 돌고 나면, 이야기가 그 일을 받아 줍니다." },
   { at: T4 + 0.1, src: "demo/vo/a_n4d.mp3", seconds: 1.9, text: "이야기 사이엔, 영어 수업." },
@@ -138,7 +150,13 @@ const sfx = (at: number, name: string, volume: number, seconds = 0.5): Cue => ({
 /** 효과음. */
 export const SFX: Cue[] = [
   sfx(2.5, "pop", 0.35), sfx(3.7, "pop", 0.45), sfx(4.7, "pop", 0.6),
-  sfx(6.55, "whoosh", 0.8), sfx(7.35, "thud", 0.5), sfx(8.3, "sparkle", 0.3, 1.3),
+  // 도입의 각 부분과 제목 장면
+  sfx(INTRO.driver - 0.1, "whoosh", 0.5), sfx(INTRO.driver + 0.3, "pop", 0.3), sfx(INTRO.driver + 0.75, "pop", 0.3),
+  sfx(INTRO.tablet - 0.1, "whoosh", 0.5), sfx(INTRO.tablet + 0.3, "pop", 0.35),
+  sfx(INTRO.worry - 0.1, "whoosh", 0.5), sfx(INTRO.worry + 0.35, "pop", 0.3), sfx(INTRO.worry + 0.75, "pop", 0.3),
+  sfx(INTRO.friend - 0.1, "whoosh", 0.5), sfx(INTRO.friend + 0.5, "sparkle", 0.3, 1.3),
+  ...[0, 1, 2].map((i) => sfx(INTRO.friend + (40 + i * 14) / 30, "pop", 0.3)),
+  sfx(T2 - 0.05, "whoosh", 0.8), sfx(T2 + 0.75, "thud", 0.5), sfx(T2 + 1.7, "sparkle", 0.3, 1.3),
   sfx(T3 - 0.1, "whoosh", 0.7), sfx(T3 + TURN.react - 0.1, "pop", 0.3),
   sfx(T3 + TURN.recallAt - 0.2, "whoosh", 0.7), sfx(T3 + TURN.recall - 0.05, "pop", 0.35), sfx(T3 + TURN.english - 0.05, "sparkle", 0.3, 1.3),
   sfx(T4 - 0.1, "whoosh", 0.7), sfx(T4 + 4.9, "pop", 0.45), sfx(T4 + 5.76, "ding", 0.2, 1.4),

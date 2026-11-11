@@ -287,8 +287,10 @@ cd animation && npm install && bash scripts/export.sh
 
 ## 시연 영상
 
-[`docs/demo/ajik-meoreosseo-demo.mp4`](docs/demo/ajik-meoreosseo-demo.mp4) — 1920×1080, 2분 47초.
-"아직 멀었어?"로 시작해 "벌써 다 왔어?"로 끝나는 모션그래픽입니다. 주요 기능을 차례로 소개하되, 앞 장면을 보고 궁금해질 즈음에
+[`docs/demo/ajik-meoreosseo-demo.mp4`](docs/demo/ajik-meoreosseo-demo.mp4) — 1920×1080, 3분 11초.
+"아직 멀었어?"로 시작해 "벌써 다 왔어?"로 끝나는 모션그래픽입니다. 도입에서는 부모가 겪는 상황에 공감하도록 했습니다:
+운전에 집중해야 하는 부모와 지루한 아이 → 결국 쥐여 주는 태블릿 → 일찍부터 시키고 싶은 영어 공부(교육부 「2024 유아 사교육비
+시험조사」의 5세 사교육 참여율 81.2%, 영어유치원 월평균 154만 원) → 화면 대신 옆에서 같이 배우는 친구. 그다음 주요 기능을 차례로 소개하되, 앞 장면을 보고 궁금해질 즈음에
 그 답이 되는 장면이 오게 했습니다: 매일 새로 쓰는 동화 → 동화 사이 영어 수업(통과하면 간식) → 간식으로 자라는 강아지 → 배운 말의 복습과
 문장으로의 확장 → 무엇을 얼마나 배우는지 → 차의 움직임과 함께, 운전은 방해하지 않게(깜빡이, 내비) → 아이가 울 때(비밀 버튼).
 차량 화면 틀 안의 장면(깜빡이를 켠 동안 말없이 기울고 끈 뒤 이야기로 받아 주기,
@@ -300,7 +302,7 @@ cd animation && npm install && bash scripts/export.sh
 
 ```bash
 cd animation && npm install
-python3 scripts/make_music.py 167.1          # 오르골풍 배경 음악과 효과음을 직접 합성(표준 라이브러리만 사용)
+python3 scripts/make_music.py 191.3          # 오르골풍 배경 음악과 효과음을 직접 합성(표준 라이브러리만 사용)
 bash scripts/narrate.sh <목소리ID> a_ "n1=문장" …   # 내레이션(ElevenLabs, 키는 secrets.properties에서 읽음)
 python3 scripts/pull_voice.py <앱 음성 저장 폴더> public/demo/app   # 앱이 만들어 둔 강아지 목소리 꺼내기
 npx remotion render Demo ../docs/demo/ajik-meoreosseo-demo.mp4
