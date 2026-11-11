@@ -339,6 +339,7 @@ npx remotion render Demo ../docs/demo/ajik-meoreosseo-demo.mp4
 | 항목 | 내용 |
 |---|---|
 | 실행 환경 | Pleos Connect Emulator v2.1.0 (Android Automotive, Android 14 · API 34) |
+| 화면 규격 | 에뮬레이터 화면 2560×1440, 160dpi(mdpi). 앱 창은 그 안의 1682×1210 영역(가로)에 맞춰 그립니다 |
 | 앱 | minSdk 28, targetSdk 34, compileSdk 36, Kotlin(안드로이드 기본 View), 가로 화면 |
 | 빌드 도구 | Android Studio 2026.2, Gradle 9.4.1(래퍼 포함), Android Gradle Plugin 9.2.1, JDK 17 이상 |
 | Pleos SDK | Vehicle 2.3.2, TextToSpeech 3.3.1, SpeechToText 3.3.1, NaviHelper 3.0.5 |
