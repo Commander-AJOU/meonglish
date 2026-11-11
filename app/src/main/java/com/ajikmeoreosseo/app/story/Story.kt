@@ -11,6 +11,9 @@ sealed interface Beat {
      */
     data class Say(val text: String, val needsName: Boolean = false, val pauseAfterMs: Long = 0) : Beat
 
+    /** 바로 앞 문장에 나온 낱말의 영어 메아리("Moon!"). [StoryEcho]가 넣습니다. */
+    data class Echo(val english: String) : Beat
+
     /** 장과 장 사이의 쉼. 길이는 남은 주행 시간에 맞춰 엔진이 정합니다. */
     data object Gap : Beat
 
@@ -233,8 +236,17 @@ object Reactions {
     const val TREAT_HALF = "간식 반 조각이 생겼어. 반 조각 더 모으면 하나가 돼!"
     const val TREAT_HALF_COMPLETED = "반 조각 두 개가 만나서, 간식 하나 완성!"
 
-    /** 도착했을 때 모은 간식을 알려 주는 말. */
-    const val TREATS_AT_ARRIVAL = "오늘 모은 간식은 {개수}개! 차에서 내리기 전에 {멍한테} 주고 갈까?"
+    /** 도착했을 때 모은 간식을 알려 주는 말(차가 아이 목소리를 들을 수 없을 때). */
+    const val TREATS_AT_ARRIVAL = "오늘 모은 간식은 {개수}개! 차를 세우면 {멍한테} 줄 수 있어."
+
+    /**
+     * 도착했을 때 뒷자리에서 말로 간식을 주게 합니다. 아이 손이 차량 화면에 닿지 않으므로,
+     * 아이가 "Here you are!"라고 말하면 차가 듣고 간식이 강아지에게 날아갑니다.
+     */
+    const val FEED_ASK = "오늘 모은 간식은 {개수}개! {멍한테} 간식을 줄 때는 영어로 이렇게 말해."
+    const val FEED_SAY = "Here you are!"
+    const val FEED_OK = "냠냠! 고마워, {이름아}! 정말 맛있다!"
+    const val FEED_LATER = "괜찮아. 차를 세운 뒤에 간식 주기 버튼을 눌러도 돼."
 
     /** 간식을 먹었을 때. */
     val yum = listOf(
@@ -254,11 +266,15 @@ object Reactions {
     const val GROWN_HARDER_ENGLISH = "그리고 {멍이} 자라서, 이제 조금 더 긴 영어도 배울 수 있어!"
 
     /** 이야기를 시작하자마자 미리 받아 둘 반응 대사(ElevenLabs 사용 시 첫 반응이 늦지 않도록). */
-    /** 부모의 비밀 버튼을 눌렀을 때. 한 묶음씩 돌아가며 말합니다. 달랜 뒤에는 꼭 안심시키는 말로 끝냅니다. */
+    /**
+     * 부모의 비밀 버튼을 눌렀을 때. 한 묶음씩 돌아가며 말합니다.
+     * 겁을 주거나("울면 떠날 거야") 울음을 참으라고 하지 않습니다. 마음을 먼저 받아 주고, 곁에 있다고 말해 주고,
+     * 숨 고르기나 다음에 할 일로 마음을 돌려 줍니다.
+     */
     val calm: List<List<String>> = listOf(
-        listOf("{이름아}, 울지 마. 울면 {멍이} 구름 타고 떠날 거야.", "뚝 그치면 {멍이} 계속 옆에 있을게."),
-        listOf("어? {멍의} 구름이 흔들려. {이름이} 울면 {멍이} 저 멀리 날아가 버릴지도 몰라.", "우리 같이 후 하고 숨 쉬어 볼까?"),
-        listOf("{이름아}, 자꾸 울면 {멍이} 떠날 거야. 정말이야.", "눈물 닦고 {멍이랑} 같이 가자."),
+        listOf("{이름아}, 속상했구나. 괜찮아, {멍이} 옆에 있어.", "우리 같이 후 하고 숨 쉬어 볼까? 후."),
+        listOf("어? {멍의} 귀가 쫑긋했어. {이름아}, 무슨 일이야?", "울어도 괜찮아. {멍이} 꼭 붙어 있을게."),
+        listOf("{이름아}, {멍이} 여기 있어. 눈물이 나면 울어도 돼.", "다 울고 나면 {멍이랑} 같이 달빛 섬에 가자."),
     )
 
     val warmUp: List<String> = listOf(

@@ -204,7 +204,7 @@ class MainActivity : Activity(), StoryEngine.Ui {
 
         Clay.pressable(findViewById(R.id.startButton), ::enterStory)
         Clay.pressable(settingsButton, ::openSettings)
-        Clay.pressable(feedButton, ::feed)
+        Clay.pressable(feedButton) { feed() }
         Clay.pressable(houseButton, ::openHouse)
         Clay.pressable(findViewById(R.id.houseBack), ::closeHouse)
         Clay.pressable(findViewById(R.id.reward), ::openWordBook)
@@ -289,6 +289,18 @@ class MainActivity : Activity(), StoryEngine.Ui {
                     intent.getStringExtra("name") ?: "유치원",
                 )
                 "cancelRoute" -> trip.cancelRouteForDebug()
+                // 시험용 차량 신호: --es pos P|D|R / --ez occupied true|false / --ez buckled true|false
+                "gear" -> onCarEvent(
+                    CarEvent.Gear(
+                        when (intent.getStringExtra("pos")) {
+                            "D" -> CarEvent.Gear.Position.DRIVE
+                            "R" -> CarEvent.Gear.Position.REVERSE
+                            else -> CarEvent.Gear.Position.PARK
+                        },
+                    ),
+                )
+                "seat" -> onCarEvent(CarEvent.RearSeat(intent.getBooleanExtra("occupied", true)))
+                "belt" -> onCarEvent(CarEvent.RearBelt(intent.getBooleanExtra("buckled", true)))
                 // 촬영용: 차량 신호 없이 방향지시등 반응만 일으킵니다(실제 신호는 플레오스의 측면 카메라 화면이 앱을 덮습니다).
                 "turn" -> onCarEvent(
                     CarEvent.TurnSignal(
@@ -306,7 +318,9 @@ class MainActivity : Activity(), StoryEngine.Ui {
     /** 시연용: 내비 안내가 시작/종료된 것처럼 오디오 포커스를 흉내 냅니다. adb shell am broadcast -a com.ajikmeoreosseo.app.DEBUG_FOCUS --ez lost true */
     private val debugFocus = object : android.content.BroadcastReceiver() {
         override fun onReceive(context: Context, intent: android.content.Intent) {
-            narrator.simulateFocus(intent.getBooleanExtra("lost", true))
+            // --ez forGood true: 음악을 튼 것처럼 포커스를 아주 잃음(다른 소리가 없으면 몇 초 뒤 스스로 이어 읽어야 함)
+            if (intent.getBooleanExtra("forGood", false)) narrator.simulateFocusLostForGood()
+            else narrator.simulateFocus(intent.getBooleanExtra("lost", true))
         }
     }
 
@@ -416,7 +430,7 @@ class MainActivity : Activity(), StoryEngine.Ui {
         val gate = if (!refit) null else IrisView.Gate { open ->
             var opened = false
             val openOnce = {
-                if (!opened) {
+                if (!opened && !isFinishing && !isDestroyed) {
                     opened = true
                     iris.updateCard(titleCard())
                     main.postDelayed(open, 900L)
@@ -430,7 +444,8 @@ class MainActivity : Activity(), StoryEngine.Ui {
         iris.play(
             point[0], point[1], card,
             onCovered = { show(Screen.STORY) },
-            onOpening = { engine.start() },
+            // 전환 중에 앱을 닫았으면(뒤로 가기) 이야기를 시작하지 않습니다.
+            onOpening = { if (!isFinishing && !isDestroyed) engine.start() },
             onDone = { transitioning = false },
             gate = gate,
         )
@@ -503,10 +518,16 @@ class MainActivity : Activity(), StoryEngine.Ui {
         feedCount.text = when {
             pet.treats > 0 && pet.hasHalfTreat -> getString(R.string.feed_count_half, pet.treats)
             pet.treats > 0 -> getString(R.string.feed_count, pet.treats)
-            pet.hasHalfTreat -> getString(R.string.feed_half_only)
             else -> ""
         }
-        feedLabel.setText(if (pet.treats > 0) R.string.feed else R.string.feed_none)
+        // 반 조각만 있을 때는 "간식이 없어요" 옆에 "반 조각"이 붙어 어색하므로 한마디로 보여 줍니다.
+        feedLabel.setText(
+            when {
+                pet.treats > 0 -> R.string.feed
+                pet.hasHalfTreat -> R.string.feed_half_only
+                else -> R.string.feed_none
+            },
+        )
         feedButton.isEnabled = canFeed
         feedButton.alpha = if (canFeed) 1f else 0.45f
         feedHint.text = getString(
@@ -528,26 +549,57 @@ class MainActivity : Activity(), StoryEngine.Ui {
         houseButton.alpha = if (driving) 0.35f else 1f
     }
 
+    /**
+     * 아이가 뒷자리에서 "Here you are!"라고 말해 간식을 줬을 때(도착해서 차를 세운 뒤).
+     * 모은 간식을 하나씩 차례로 먹입니다. 강아지 대사는 이야기 엔진이 하므로 여기서는 말하지 않습니다.
+     */
+    override fun onFeedByVoice() {
+        fun next() {
+            if (isFinishing || isDestroyed || driving || pet.treats <= 0) return
+            feed(byVoice = true)
+            main.postAtTime(::next, VOICE_FEED, SystemClock.uptimeMillis() + FEED_LOCK_MS)
+        }
+        main.removeCallbacksAndMessages(VOICE_FEED)
+        next()
+    }
+
     /** 간식 하나가 강아지에게 날아가고, 강아지가 기뻐하며 한 단계 자랍니다. 모습이 바뀌면 빛이 번쩍입니다. */
-    private fun feed() {
-        if (driving || transitioning || screen != Screen.HOME) return
+    private fun feed(byVoice: Boolean = false) {
+        if (driving || transitioning) return
+        if (!byVoice && screen != Screen.HOME) return
         val now = SystemClock.elapsedRealtime()
         if (now < feedingUntil) return
+        val levelBefore = pet.level
         val result = pet.feed() ?: return
         feedingUntil = now + FEED_LOCK_MS
-        val unlocked = house.unlockedBetween(result.level - 1, result.level)
+        // 다 자란 뒤에는 먹어도 단계가 그대로이므로, 실제로 오른 단계에서만 새 물건을 찾습니다.
+        val unlocked = house.unlockedBetween(levelBefore, result.level)
         grewJustNow = result.grewTo != null
         newItemJustNow = unlocked.isNotEmpty()
         renderHome()
 
-        // 간식 버튼의 그림 자리에서 출발합니다(장면 뷰 안의 좌표로 바꿔서).
-        feedButton.getLocationInWindow(location)
-        sky.getLocationInWindow(skyLocation)
-        val fromX = location[0] - skyLocation[0] + feedButton.width * 0.25f
-        val fromY = location[1] - skyLocation[1] + feedButton.height * 0.5f
+        // 간식 버튼의 그림 자리에서 출발합니다(장면 뷰 안의 좌표로 바꿔서). 말로 줬으면 화면 아래 가운데(뒷자리 쪽)에서.
+        val fromX: Float
+        val fromY: Float
+        if (byVoice || feedButton.visibility != View.VISIBLE || !feedButton.isShown) {
+            fromX = sky.width * 0.5f
+            fromY = sky.height * 0.95f
+        } else {
+            feedButton.getLocationInWindow(location)
+            sky.getLocationInWindow(skyLocation)
+            fromX = location[0] - skyLocation[0] + feedButton.width * 0.25f
+            fromY = location[1] - skyLocation[1] + feedButton.height * 0.5f
+        }
         sky.feed(fromX, fromY) {
             sky.celebrate()
             val grewTo = result.grewTo
+            if (byVoice) {
+                if (grewTo != null) {
+                    main.postDelayed({ sky.evolve(grewTo) }, EVOLVE_DELAY_MS)
+                    coach.setMinLevel(pet.englishFloor)
+                }
+                return@feed
+            }
             if (grewTo != null) {
                 main.postDelayed({ sky.evolve(grewTo) }, EVOLVE_DELAY_MS)
                 // 꼬마·소년이 되면 영어 레벨 최소값도 오릅니다. 올랐으면 한마디 덧붙입니다.
@@ -1047,6 +1099,7 @@ class MainActivity : Activity(), StoryEngine.Ui {
         const val STAY_AFTER_ENDING_MS = 2_500L
         const val SLIDE_MS = 280L
         const val FEED_LOCK_MS = 1_100L
+        private val VOICE_FEED = Any()
         const val EVOLVE_DELAY_MS = 900L
         const val REFIT_TIMEOUT_MS = 15_000L
         const val DEBUG_NAVI_ACTION = "com.ajikmeoreosseo.app.DEBUG_NAVI"

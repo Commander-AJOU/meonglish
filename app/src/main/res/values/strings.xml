@@ -53,7 +53,7 @@
     <string name="service_text">이야기를 들려주는 중이에요</string>
     <string name="listen_confirm">잘 말했어요</string>
     <string name="feed_count_half">×%1$d½</string>
-    <string name="feed_half_only">반 조각</string>
+    <string name="feed_half_only">간식 반 조각</string>
 
     <!-- 설정 (어른용) -->
     <string name="back">뒤로</string>

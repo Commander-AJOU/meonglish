@@ -84,6 +84,8 @@ class StoryGenerator(context: Context) {
         }
         if (state == State.WORKING) {
             if (onDone != null) waiting += onDone
+            // 쓰는 중에 길이가 다른 이야기가 필요해지면(그날 첫 이야기를 쓰는 사이에 내비 경로가 잡힘) 끝난 뒤 그 길이로 다시 씁니다.
+            if (force && size != writingSize) pending = Pending(tone, petName, words, size)
             return
         }
         val today = LocalDate.now()
@@ -98,7 +100,14 @@ class StoryGenerator(context: Context) {
         write(tone, petName, words, size)
     }
 
+    private class Pending(val tone: Tone, val petName: String, val words: List<Word>, val size: Size)
+
+    /** 지금 쓰고 있는 이야기의 크기와, 끝난 뒤에 이어서 써야 할 요청. */
+    private var writingSize: Size? = null
+    private var pending: Pending? = null
+
     private fun write(tone: Tone, petName: String, words: List<Word>, size: Size) {
+        writingSize = size
         val today = LocalDate.now()
         val note = todayNote()
         val recentTitles = recentTitles(today)
@@ -138,6 +147,14 @@ class StoryGenerator(context: Context) {
                     setState(State.FAILED)
                     Log.w(TAG, "story generation failed", error)
                 }
+                pending?.let { next ->
+                    pending = null
+                    Log.d(TAG, "story size changed while writing: rewriting as ${next.size.chapters}x${next.size.linesPerChapter}")
+                    setState(State.WORKING)
+                    write(next.tone, next.petName, next.words, next.size)
+                    return@post
+                }
+                writingSize = null
                 val callbacks = waiting.toList()
                 waiting.clear()
                 callbacks.forEach { it() }

@@ -60,6 +60,19 @@ class ElevenLabsVoice(
     var pausedByFocus = false
         private set
 
+    /**
+     * 포커스를 아주 잃었는지(운전자가 음악·라디오를 틂). 이때는 시스템이 "되찾았다"는 신호를 주지 않으므로,
+     * 다른 소리가 멎었는지 [tryRegainFocus]로 직접 살펴 다시 받아야 합니다.
+     */
+    private var focusLostForGood = false
+
+    private val regainCheck: Runnable = object : Runnable {
+        override fun run() {
+            if (!pausedByFocus || !focusLostForGood) return
+            if (!tryRegainFocus()) main.postDelayed(this, REGAIN_CHECK_MS)
+        }
+    }
+
     /** 포커스를 잃은 사이에 시작하려던 재생. 되찾으면 시작합니다. */
     private var startWhenFocusReturns: (() -> Unit)? = null
 
@@ -70,6 +83,12 @@ class ElevenLabsVoice(
     fun onFocusChange(change: Int) {
         when (change) {
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT, AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK, AudioManager.AUDIOFOCUS_LOSS -> {
+                if (change == AudioManager.AUDIOFOCUS_LOSS) {
+                    focusLostForGood = true
+                    // 시스템이 되찾았다고 알려 주지 않으므로, 다른 소리가 멎었는지 몇 초마다 직접 살핍니다.
+                    main.removeCallbacks(regainCheck)
+                    main.postDelayed(regainCheck, REGAIN_CHECK_MS)
+                }
                 if (pausedByFocus) return
                 pausedByFocus = true
                 Log.d(TAG, "audio focus lost ($change): pausing")
@@ -79,6 +98,7 @@ class ElevenLabsVoice(
             AudioManager.AUDIOFOCUS_GAIN -> {
                 if (!pausedByFocus) return
                 pausedByFocus = false
+                focusLostForGood = false
                 Log.d(TAG, "audio focus regained: resuming")
                 // 끼어든 소리의 끝과 겹치지 않도록 잠깐 두고 이어 읽습니다.
                 main.postDelayed({
@@ -110,6 +130,9 @@ class ElevenLabsVoice(
     // 아래는 메인 스레드에서만 만집니다.
     private var player: MediaPlayer? = null
     private var generation = 0
+
+    /** [stop]이 불린 횟수. 끼어든 말은 다음 문장이 준비돼도([generation]이 바뀌어도) 끝까지 말하고, 멈췄을 때만 그만둡니다. */
+    private var stops = 0
     private var cuePlayer: MediaPlayer? = null
     private var interjecting = false
     private var startWhenCueEnds: (() -> Unit)? = null
@@ -150,18 +173,21 @@ class ElevenLabsVoice(
             return false
         }
         if (interjecting) return false
+        // 내비가 말하는 중이면 그 위에 외치지 않습니다(엔진이 안내가 끝난 뒤에 말하도록 넘깁니다).
+        if (pausedByFocus) return false
 
         interjecting = true
         val paused = player?.takeIf { runCatching { it.isPlaying }.getOrDefault(false) }
         paused?.let { runCatching { it.pause() } }
         if (player == null) audioManager.requestAudioFocus(focusRequest)
-        val mine = generation
+        val mine = stops
 
         fun finish() {
             cuePlayer = null
             interjecting = false
-            if (mine != generation) return
+            if (mine != stops) return
             if (player == null) audioManager.abandonAudioFocusRequest(focusRequest)
+            // 외치는 사이에 다음 문장이 준비됐으면(문장 사이에 깜빡이를 켠 경우) 멈췄던 문장 대신 그 문장을 시작합니다.
             paused?.let { if (player === it) runCatching { it.start() } }
             startWhenCueEnds?.invoke()
             startWhenCueEnds = null
@@ -169,7 +195,7 @@ class ElevenLabsVoice(
         }
 
         fun playFrom(index: Int) {
-            if (index >= files.size || mine != generation) {
+            if (index >= files.size || mine != stops) {
                 finish()
                 return
             }
@@ -198,9 +224,27 @@ class ElevenLabsVoice(
         return true
     }
 
+    /**
+     * 음악·라디오에 포커스를 아주 내준 뒤, 그 소리가 멎었으면 포커스를 다시 받아 멈춘 자리부터 이어 읽습니다.
+     * 낭독부가 멈춰 있는 동안 주기적으로 부릅니다. 다른 소리가 아직 나고 있으면 빼앗지 않고 기다립니다.
+     */
+    fun tryRegainFocus(): Boolean {
+        if (!pausedByFocus || !focusLostForGood) return false
+        if (audioManager.isMusicActive) return false
+        if (audioManager.requestAudioFocus(focusRequest) != AudioManager.AUDIOFOCUS_REQUEST_GRANTED) return false
+        Log.d(TAG, "other audio ended: taking focus back")
+        onFocusChange(AudioManager.AUDIOFOCUS_GAIN)
+        return true
+    }
+
     /** 읽던 것을 멈춥니다. 대기 중이던 콜백은 호출되지 않습니다. */
     fun stop() {
         generation++
+        stops++
+        // 멈춘 뒤에는 포커스를 내놓으므로 "되찾았다"는 신호가 오지 않습니다. 다음에 읽을 때 막히지 않게 풉니다.
+        pausedByFocus = false
+        focusLostForGood = false
+        main.removeCallbacks(regainCheck)
         cuePlayer?.let { runCatching { it.release() } }
         cuePlayer = null
         interjecting = false
@@ -404,6 +448,7 @@ class ElevenLabsVoice(
     // endregion
 
     private companion object {
+        const val REGAIN_CHECK_MS = 3_000L
         const val TAG = "ElevenLabsVoice"
         const val API = "https://api.elevenlabs.io"
         const val CONNECT_TIMEOUT_MS = 4_000

@@ -44,6 +44,8 @@ class StoryEngine(
         fun onPhase(phase: Phase)
         /** 아이가 말할 차례를 듣고 있는지. */
         fun onListening(active: Boolean)
+        /** 아이가 뒷자리에서 말로 간식을 줬을 때. 모은 간식을 강아지에게 먹입니다. */
+        fun onFeedByVoice()
     }
 
     enum class Phase { IDLE, WAITING_BELT, TELLING, HOLDING, ENDING, ENDED }
@@ -103,6 +105,9 @@ class StoryEngine(
     /** 이번 이야기에서 말마다 몇 번 시도했는지와 통과 여부. */
     private val attempts = HashMap<String, Int>()
     private val passed = HashMap<String, Boolean>()
+
+    /** 이번 이동에서 아이가 다른 말로 대답한 말(아무 말도 못 들은 것과 구별합니다). */
+    private val misheard = HashSet<String>()
     private var cursor = 0
     private var endingCursor = 0
     private var interludeCursor = 0
@@ -152,6 +157,8 @@ class StoryEngine(
         coach.opening = Story.lessonOpening(tone)
         coach.setMinLevel(pet.englishFloor)
         coach.beginTrip(navi.remainingSec?.let { it / 60 })
+        // 이야기 속에 아는 영어를 메아리로 섞습니다(수업 시간 말고도 영어를 듣도록).
+        script = StoryEcho.weave(script, coach.echoWords())
         // 이미 달리는 중에 시작했다면, 다음 P단을 도착으로 봅니다.
         leftParkDuringStory = gear != Position.PARK && gear != Position.UNKNOWN
         setPhase(Phase.TELLING)
@@ -246,7 +253,11 @@ class StoryEngine(
 
             is CarEvent.RearSeat -> {
                 rearOccupied = event.occupied
-                if (!rearOccupied) beltConfirmedByAdult = false
+                if (!rearOccupied) {
+                    beltConfirmedByAdult = false
+                    // 벨트를 기다리던 중에 자리가 비면 더 기다릴 이유가 없습니다. 벨트를 맨 것은 아니므로 "찰칵!"은 하지 않습니다.
+                    resumeFromBeltIfReady(buckled = false)
+                }
             }
 
             is CarEvent.RearBelt -> onRearBelt(event.buckled)
@@ -358,10 +369,10 @@ class StoryEngine(
         enqueue(aside(KEY_BELT, line, null))
     }
 
-    private fun resumeFromBeltIfReady() {
+    private fun resumeFromBeltIfReady(buckled: Boolean = true) {
         if (phase != Phase.WAITING_BELT || needsBelt()) return
         setPhase(if (cursor >= script.size) Phase.HOLDING else Phase.TELLING)
-        enqueue(aside(KEY_BELT, Reactions.BELT_OK, Cue.BELT))
+        if (buckled) enqueue(aside(KEY_BELT, Reactions.BELT_OK, Cue.BELT)) else pumpNow()
     }
 
     private fun onStoppedForAWhile() {
@@ -478,6 +489,10 @@ class StoryEngine(
                     sayLine(Line(beat.text, pauseAfterMs = beat.pauseAfterMs), isStory = true)
                     return
                 }
+                is Beat.Echo -> {
+                    sayLine(Line(beat.english, Lang.EN, pauseAfterMs = ECHO_PAUSE_MS), isStory = true)
+                    return
+                }
                 Beat.Gap -> {
                     // 장과 장 사이: 오늘 할 영어가 남아 있으면 한 가지 하고, 없으면 쉬어 갑니다.
                     val lesson = coach.nextLesson()
@@ -544,11 +559,23 @@ class StoryEngine(
         ui.onListening(true)
         val tries = (attempts[word.id] ?: 0) + 1
         attempts[word.id] = tries
-        val handle: (AnswerListener.Result) -> Unit = { result ->
+        val handle: (AnswerListener.Result) -> Unit = handle@{ result ->
             listening = false
             ui.onListening(false)
+            if (word === FEED_WORD) {
+                // 말로 간식 주기: 영어 진도나 통과율에는 넣지 않습니다.
+                Log.d(TAG, "feed by voice: passed=${result.passed} heard=${result.heard}")
+                if (result.passed) ui.onFeedByVoice()
+                val reply = Line(if (result.passed) Reactions.FEED_OK else Reactions.FEED_LATER)
+                current?.lines?.addFirst(reply)
+                speaking = false
+                resumeAt = SystemClock.elapsedRealtime() + MIN_PAUSE_MS
+                pumpNow()
+                return@handle
+            }
             val retry = !result.passed && tries == 1 && listener.available && isFirstMeeting(word)
             if (result.passed) passed[word.id] = true else if (!retry) passed.putIfAbsent(word.id, false)
+            if (!result.passed && result.heard != null) misheard += word.id
             Log.d(TAG, "listen: ${word.english} passed=${result.passed} heard=${result.heard} retry=$retry")
             lastCaption?.let { (text, english) -> ui.onCaption(text, english) }
             // 다시 해 볼 차례가 아니면 결과를 적어, 아이 실력에 맞게 오늘의 양을 조절합니다(차가 들을 수 있을 때만).
@@ -597,8 +624,15 @@ class StoryEngine(
     /** 곧 읽을 본문을 미리 받아 둡니다. 차량 기본 음성만 쓸 때는 아무 일도 하지 않습니다. */
     private fun prefetchUpcoming() {
         when (phase) {
-            Phase.TELLING -> script.drop(cursor).filterIsInstance<Beat.Say>().filter(::applies)
-                .take(PREFETCH_AHEAD).forEach { prefetch(it.text) }
+            Phase.TELLING -> script.drop(cursor)
+                .mapNotNull { beat ->
+                    when (beat) {
+                        is Beat.Say -> beat.text.takeIf { applies(beat) }
+                        is Beat.Echo -> beat.english
+                        else -> null
+                    }
+                }
+                .take(PREFETCH_AHEAD).forEach { prefetch(it) }
             Phase.ENDING -> ending.drop(endingCursor).forEach { prefetch(it) }
             else -> Unit
         }
@@ -624,6 +658,13 @@ class StoryEngine(
      * 덧붙여 말할 것(꿈 구슬, 레벨 업, 간식)을 돌려줍니다.
      */
     private fun finishLesson(word: Word, quiet: Boolean = false, passed: Boolean = true): List<Line> {
+        // 오랜만에 다시 확인한 꿈 구슬: 맞히면 간식 하나, 틀리게 말하면 구슬이 흐려집니다.
+        if (coach.isCheck(word)) {
+            val lines = coach.finishCheck(word, passed, misheard = word.id in misheard)
+            if (!passed) return lines
+            pet.earn(1)
+            return if (quiet) lines else lines + Line(Reactions.treatEarned[0])
+        }
         val counts = coach.willCount(word)
         val extra = coach.finishWord(word)
         if (!counts) return extra
@@ -639,8 +680,21 @@ class StoryEngine(
         return extra + Line(Reactions.treatEarned[index % Reactions.treatEarned.size])
     }
 
-    private fun treatsAtArrival(): List<Line> =
-        if (pet.treats > 0) listOf(Line(Reactions.TREATS_AT_ARRIVAL.replace("{개수}", pet.treats.toString()))) else emptyList()
+    /**
+     * 도착했을 때 모은 간식. 차가 아이 목소리를 들을 수 있으면 "Here you are!"라고 말해서 주게 하고,
+     * 못 들으면 차를 세운 뒤 버튼으로 주라고 알려 줍니다.
+     */
+    private fun treatsAtArrival(): List<Line> {
+        if (pet.treats <= 0) return emptyList()
+        val count = pet.treats.toString()
+        if (!listener.available) return listOf(Line(Reactions.TREATS_AT_ARRIVAL.replace("{개수}", count)))
+        return listOf(
+            Line(Reactions.FEED_ASK.replace("{개수}", count), pauseAfterMs = 300),
+            Line(Reactions.FEED_SAY, Lang.EN, pauseAfterMs = 400),
+            Line(REPEAT_FEED),
+            Line(Reactions.FEED_SAY, Lang.EN, pauseAfterMs = 2_800, listenFor = FEED_WORD),
+        )
+    }
 
     // endregion
 
@@ -682,6 +736,8 @@ class StoryEngine(
      * 지금 바로 말할 수 없으면(음성이 준비되지 않음, 영어 수업 꺼짐 등) false를 돌려줍니다.
      */
     private fun shout(cue: Cue): Boolean {
+        // 아이 대답을 듣는 중에 외치면 강아지 목소리가 마이크로 들어갑니다. 그때는 듣기가 끝난 뒤에 말합니다.
+        if (listening) return false
         val word = coach.cueWord(cue) ?: return false
         val now = SystemClock.elapsedRealtime()
         val last = lastShoutAt[cue]
@@ -791,6 +847,7 @@ class StoryEngine(
         pendingAnswer = null
         attempts.clear()
         passed.clear()
+        misheard.clear()
         lastNaviReactionAt = 0L
         reactedTurn = null
         reactedLimit = null
@@ -810,6 +867,11 @@ class StoryEngine(
     }
 
     private companion object {
+
+        /** 말로 간식 줄 때 아이가 할 말. 단어장의 영어 수업과는 따로 셉니다. */
+        private val FEED_WORD = Word("feed_here_you_are", Reactions.FEED_SAY, "여기 있어", 2)
+        private const val REPEAT_FEED = "따라 말하면 {멍이} 받아먹을게!"
+        private const val ECHO_PAUSE_MS = 500L
         const val TAG = "StoryEngine"
         const val KEY_TURN = "turn"
         const val KEY_RAIN = "rain"

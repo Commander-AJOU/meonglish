@@ -18,7 +18,7 @@ export const STORY = {
 };
 
 /** 비밀 버튼 장면 안의 시각(초). clipCalm은 clips/secret.mp4에서 달래는 말이 시작되는 때. */
-export const SECRET = { press: 3.5, calm1: 4.3, calm2: 9.16, end: 12.5, clipCalm: 7.97 };
+export const SECRET = { press: 3.5, calm1: 4.3, calm2: 9.2, end: 14.3, clipCalm: 7.97 };
 
 /** 문장 장면 안의 시각(초). clipAsk는 clips/sentence.mp4에서 "‘큰 개’. 영어로 뭐였지?"가 나오는 때. */
 export const SENTENCE = { ask: 3.5, pass: 8.03, english: 9.46, card2: 11.6, end: 14.5, clipAsk: 3.77 };
@@ -107,8 +107,8 @@ export const APP_VOICE: Cue[] = [
   { at: TN + SENTENCE.pass, src: "demo/app/right_answer.mp3", seconds: 0.9 },
   { at: TN + SENTENCE.english, src: "demo/app/bigdog_en.mp3", seconds: 1.52, rate: 0.8 },
   // 비밀 버튼
-  { at: TS + SECRET.calm1, src: "demo/app/calm_1.mp3", seconds: 4.56 },
-  { at: TS + SECRET.calm2, src: "demo/app/calm_2.mp3", seconds: 3.12 },
+  { at: TS + SECRET.calm1, src: "demo/app/calm_1.mp3", seconds: 4.64 },
+  { at: TS + SECRET.calm2, src: "demo/app/calm_2.mp3", seconds: 4.56 },
 ];
 
 const sfx = (at: number, name: string, volume: number, seconds = 0.5): Cue => ({ at, src: `demo/sfx/${name}.wav`, seconds, volume });

@@ -62,7 +62,7 @@ export const SceneSecret: React.FC = () => {
         <div style={{ transform: `scale(${frame >= PRESS - 14 ? pop(frame, PRESS - 14) : 0})`, transformOrigin: "0 50%" }}>
           <div style={{ fontSize: 32, color: "rgba(255,255,255,0.7)", marginBottom: 10 }}>① 왼쪽 위 장 제목을 길게 꾹</div>
           <Pill size={50} bg="rgba(10,9,32,0.55)" style={{ border: `4px solid ${C.yellow}` }}>
-            만남 <span style={{ color: C.yellow, fontSize: 36 }}>← 꾹 누르기</span>
+            하늘 길로 출발 <span style={{ color: C.yellow, fontSize: 36 }}>← 꾹 누르기</span>
           </Pill>
         </div>
 
@@ -70,7 +70,7 @@ export const SceneSecret: React.FC = () => {
           <div style={{ marginTop: 44, transform: `scale(${pop(frame, CALM1)})`, transformOrigin: "0 0" }}>
             <div style={{ fontSize: 32, color: "rgba(255,255,255,0.7)", marginBottom: 10 }}>② 강아지가 읽던 말을 멈추고 달래요</div>
             <div style={{ background: "#FFFFFF", color: C.ink, fontSize: 46, lineHeight: 1.3, borderRadius: 36, padding: "22px 32px 18px", wordBreak: "keep-all", boxShadow: "0 8px 0 rgba(0,0,0,0.2)" }}>
-              “서준아, 울지 마. 울면 콩이가 구름 타고 떠날 거야.”
+              “서준아, 속상했구나. 괜찮아, 콩이가 옆에 있어.”
             </div>
           </div>
         ) : null}
@@ -89,7 +89,7 @@ export const SceneSecret: React.FC = () => {
               transformOrigin: "0 0",
             }}
           >
-            “뚝 그치면 콩이가 계속 옆에 있을게.”
+            “우리 같이 후 하고 숨 쉬어 볼까? 후.”
           </div>
         ) : null}
       </div>

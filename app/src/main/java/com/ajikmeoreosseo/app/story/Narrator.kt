@@ -166,9 +166,16 @@ class Narrator(context: Context) {
         cloud?.onFocusChange(if (lost) android.media.AudioManager.AUDIOFOCUS_LOSS_TRANSIENT else android.media.AudioManager.AUDIOFOCUS_GAIN)
     }
 
+    /** 시험용: 운전자가 음악을 튼 것처럼 포커스를 아주 잃은 상황을 흉내 냅니다(되찾았다는 신호는 오지 않음). */
+    fun simulateFocusLostForGood() {
+        cloud?.onFocusChange(android.media.AudioManager.AUDIOFOCUS_LOSS)
+    }
+
     private fun finish(reason: String) {
         // 내비 안내 때문에 멈춰 있는 동안에는 기다립니다.
         if (reason == "watchdog" && cloud?.pausedByFocus == true) {
+            // 음악·라디오 때문에 멈췄다면 그 소리가 멎었는지 살펴 다시 이어 읽습니다.
+            cloud.tryRegainFocus()
             main.postDelayed(watchdog, PAUSED_RECHECK_MS)
             return
         }

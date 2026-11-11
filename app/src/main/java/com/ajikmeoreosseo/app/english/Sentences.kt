@@ -20,11 +20,27 @@ object Sentences {
         val korean: (noun: Word, mod: Word?) -> String,
     )
 
-    private fun a(noun: Word): String {
+    /**
+     * [noun] 앞에 붙는 관사("a " 또는 "an ", 셀 수 없는 명사면 없음).
+     * a/an은 바로 뒤에 오는 말의 첫소리로 정하므로, 꾸밈말이 사이에 끼면 [next]에 그 꾸밈말을 넘깁니다
+     * (a red apple, an old house).
+     */
+    private fun a(noun: Word, next: Word = noun): String {
         if (noun.tag == Tag.MASS) return ""
-        val first = noun.english.firstOrNull()?.lowercaseChar() ?: return "a "
-        return if (first in "aeiou") "an " else "a "
+        return if (startsWithVowelSound(next.english)) "an " else "a "
     }
+
+    /** 글자가 아니라 소리로 봅니다: a unicorn, a uniform, a one / an hour. */
+    internal fun startsWithVowelSound(english: String): Boolean {
+        val word = english.trim().lowercase()
+        if (word.isEmpty()) return false
+        if (CONSONANT_SOUND.any { word.startsWith(it) }) return false
+        if (VOWEL_SOUND.any { word.startsWith(it) }) return true
+        return word[0] in "aeiou"
+    }
+
+    private val CONSONANT_SOUND = listOf("uni", "use", "usu", "ute", "eu", "one", "once", "ukulele", "ufo")
+    private val VOWEL_SOUND = listOf("hour", "honest", "honor", "heir", "x-ray")
 
     /** 문장 속 낱말: 보통 소문자, TV처럼 약자는 그대로. */
     private fun n(noun: Word): String =
@@ -35,10 +51,10 @@ object Sentences {
     val templates: List<Template> = listOf(
         // ── 레벨 2: 짧은 표현 ──
         Template("color", 2, Needs.COLOR,
-            { noun, mod -> "${a(noun).replaceFirstChar { it.uppercase() }}${n(mod!!)} ${n(noun)}".trim().replaceFirstChar { it.uppercase() } },
+            { noun, mod -> "${a(noun, mod!!)}${n(mod)} ${n(noun)}".trim().replaceFirstChar { it.uppercase() } },
             { noun, mod -> "${mod!!.attr} ${ko(noun)}" }),
         Template("adj", 2, Needs.ADJ,
-            { noun, mod -> "${a(noun).replaceFirstChar { it.uppercase() }}${n(mod!!)} ${n(noun)}".trim().replaceFirstChar { it.uppercase() } },
+            { noun, mod -> "${a(noun, mod!!)}${n(mod)} ${n(noun)}".trim().replaceFirstChar { it.uppercase() } },
             { noun, mod -> "${mod!!.attr} ${ko(noun)}" }),
         Template("my", 2, Needs.NONE,
             { noun, _ -> "My ${n(noun)}" },
@@ -96,7 +112,7 @@ object Sentences {
             { noun, _ -> "Do you like the ${n(noun)}?" },
             { noun, _ -> "${Korean.obj(noun.korean)} 좋아해?" }),
         Template("what", 3, Needs.ADJ,
-            { noun, mod -> (if (noun.tag == Tag.MASS) "What ${n(mod!!)} ${n(noun)}!" else "What ${a(mod!!)}${n(mod)} ${n(noun)}!") },
+            { noun, mod -> (if (noun.tag == Tag.MASS) "What ${n(mod!!)} ${n(noun)}!" else "What ${a(noun, mod!!)}${n(mod)} ${n(noun)}!") },
             { noun, mod -> "정말 ${mod!!.attr} ${ko(noun)}${if (Korean.hasBatchim(noun.korean)) "이다" else "다"}!" }),
         Template("isit", 3, Needs.COLOR,
             { noun, mod -> "Is the ${n(noun)} ${n(mod!!)}?" },
@@ -121,6 +137,13 @@ object Sentences {
     )
 
     private val byKey = templates.associateBy { it.key }
+
+    /** 손으로 쓴 표현·문장의 영어(대소문자와 문장부호를 뺀 것). 만든 문장이 이와 같으면 내지 않습니다. */
+    private val handWritten: Set<String> by lazy {
+        WordBank.words.filter { it.level >= 2 }.map { plain(it.english) }.toSet()
+    }
+
+    private fun plain(english: String): String = english.lowercase().filter { it.isLetterOrDigit() || it == ' ' }.trim()
 
     fun make(template: Template, noun: Word, mod: Word?): Word {
         val id = buildString {
@@ -169,7 +192,8 @@ object Sentences {
                 // 색깔 낱말에 색깔을 또 붙이거나, 수식어를 명사처럼 쓰지 않습니다.
                 if (noun.tag != Tag.NOUN && noun.tag != Tag.MASS) continue
                 val word = make(template, noun, mod)
-                if (word.id !in seen) yield(word)
+                // 손으로 쓴 말과 같은 문장("My family", "Where is the puppy?")은 두 번 배우지 않습니다.
+                if (word.id !in seen && plain(word.english) !in handWritten) yield(word)
             }
         }
     }

@@ -11,7 +11,9 @@ import java.time.LocalDate
  *
  * 한 가지 말은 서로 다른 날에 네 번 만나면 '꿈 구슬'(완전히 익힌 말)이 됩니다.
  *   1일째 새로 배움 → 다음 날 복습(우리말→영어) → 그다음 날 복습(영어→우리말) → 이틀 뒤 마지막 확인
- * 꿈 구슬이 된 말은 다시 나오지 않고, 그 자리는 아직 안 배운 새 말이 채웁니다.
+ * 꿈 구슬이 된 말은 날마다의 복습에서 빠지고, 그 자리는 아직 안 배운 새 말이 채웁니다.
+ * 다만 잊지 않았는지 2주 뒤와 그로부터 한 달 뒤에 한 번씩 다시 묻습니다("꿈 구슬 닦기", [isCheck]).
+ * 맞히면 구슬이 그대로 남고, 틀리게 말하면 구슬이 흐려져 배우는 말로 돌아갑니다. 두 번 다 맞힌 말은 더 묻지 않습니다.
  * 같은 말을 하루에 두 번 묻지 않습니다.
  *
  * 새 말은 세 갈래에서 번갈아 꺼냅니다: 지금 레벨의 손으로 쓴 말, 낱말(레벨이 올라도 계속), 그리고
@@ -48,7 +50,8 @@ class EnglishCoach(context: Context) {
         val nextNew: List<WordPicker.Pick>,
     )
 
-    private class Progress(var stage: Int, var day: Long, var mastered: Boolean)
+    /** [checks]: 꿈 구슬이 된 뒤 오랜만의 확인을 통과한 횟수. */
+    private class Progress(var stage: Int, var day: Long, var mastered: Boolean, var checks: Int = 0)
 
     private val prefs = context.applicationContext.getSharedPreferences("english", Context.MODE_PRIVATE)
     private val progress = HashMap<String, Progress>()
@@ -127,6 +130,18 @@ class EnglishCoach(context: Context) {
     }
 
     /**
+     * 이야기 속에 영어 메아리로 섞을 낱말: 이미 만난 낱말(꿈 구슬 포함)과 이번에 배울 낱말.
+     * 이번에 배울 말을 앞에 두어, 수업 전에 이야기에서 먼저 한 번 듣게 합니다.
+     */
+    fun echoWords(): List<Word> {
+        if (!enabled) return emptyList()
+        val met = progress.entries.filter { it.value.stage > 0 || it.value.mastered }
+            .sortedByDescending { it.value.day }
+            .mapNotNull { WordBank.find(it.key) }
+        return (tripQueue.toList() + met).filter { it.level == 1 }
+    }
+
+    /**
      * 따라 말하기 결과를 적고, 이번 이동의 양을 조절합니다. 덧붙일 말이 있으면 돌려줍니다.
      * [measured]가 false면(차가 들을 수 없어 그냥 넘어간 경우) 아무것도 바꾸지 않습니다.
      *  - 두 번 연달아 못 하면: 오늘 남은 새 말은 그만 내고 복습만 합니다(지치지 않게).
@@ -187,11 +202,14 @@ class EnglishCoach(context: Context) {
 
     /** 오늘 복습할 말. 요즘 힘들어하면 거의 다 익힌(가장 익숙한) 말부터 물어 성공으로 시작하게 합니다. */
     private fun dueReviews(): List<Word> {
-        val due = progress.keys.mapNotNull(WordBank::find).filter { isDue(it) }
+        // 오랜만에 다시 확인할 꿈 구슬은 한 번 탈 때 하나만, 가장 오래된 것부터 맨 앞에 둡니다.
+        val polish = progress.keys.mapNotNull(WordBank::find).filter { isCheck(it) }
+            .sortedBy { progress.getValue(it.id).day }.take(MAX_CHECKS_PER_TRIP)
+        val due = polish + progress.keys.mapNotNull(WordBank::find).filter { isDue(it) }
         val ordered = if (struggling()) {
             due.sortedWith(compareByDescending<Word> { progress.getValue(it.id).stage }.thenBy { progress.getValue(it.id).day })
         } else {
-            due.sortedBy { progress.getValue(it.id).day }
+            polish + due.drop(polish.size).sortedBy { progress.getValue(it.id).day }
         }
         val minutes = tripMinutes
         return ordered.take(if (minutes != null && minutes < SHORT_TRIP_MINUTES) 2 else MAX_REVIEWS_PER_TRIP)
@@ -202,7 +220,7 @@ class EnglishCoach(context: Context) {
         if (!enabled) return null
         while (true) {
             val word = tripQueue.removeFirstOrNull() ?: return null
-            if (practicedToday(word) || isMastered(word)) continue
+            if (practicedToday(word) || (isMastered(word) && !isCheck(word))) continue
             return lessonFor(word, short = false)
         }
     }
@@ -262,6 +280,40 @@ class EnglishCoach(context: Context) {
         return extra
     }
 
+    /** 꿈 구슬이 된 지 오래되어 잊지 않았는지 다시 확인할 차례인지. */
+    fun isCheck(word: Word): Boolean {
+        val state = progress[word.id] ?: return false
+        if (!state.mastered) return false
+        val wait = CHECK_AFTER_DAYS.getOrNull(state.checks) ?: return false
+        return today() >= state.day + wait
+    }
+
+    /**
+     * 꿈 구슬 닦기를 끝냈을 때. 맞혔으면 구슬이 남고(두 번 맞히면 더 묻지 않음), 틀리게 말했으면([misheard])
+     * 구슬이 흐려져 배우는 말로 돌아갑니다. 아무 말도 못 들었으면 차가 못 들었을 수 있으므로 그대로 두고 다음에 다시 묻습니다.
+     */
+    fun finishCheck(word: Word, passed: Boolean, misheard: Boolean): List<Line> {
+        val state = progress[word.id] ?: return emptyList()
+        if (!isCheck(word)) return emptyList()
+        state.day = today()
+        metThisTrip += word
+        val lines = when {
+            passed -> {
+                state.checks += 1
+                listOf(Line(CHECK_KEPT))
+            }
+            misheard -> {
+                state.mastered = false
+                state.stage = STAGES_TO_MASTER - 2
+                state.checks = 0
+                listOf(Line(CHECK_FADED))
+            }
+            else -> emptyList()
+        }
+        save()
+        return lines
+    }
+
     /** 도착했을 때 오늘 만난 말을 한 번 더 들려줍니다. */
     fun recap(): List<Line> {
         if (!enabled || metThisTrip.isEmpty()) return emptyList()
@@ -274,7 +326,7 @@ class EnglishCoach(context: Context) {
 
     /** 어떤 수업에서든 쓰는 말. 이야기를 시작할 때 미리 받아 두면 수업이 끊기지 않습니다. */
     fun commonLines(): List<String> =
-        if (enabled) listOf(opening, EASE_OFF, BONUS, REPEAT, PRAISE_PASS, REMEMBER, RIGHT, REVERSE, MEANING, LAST_CHECK, TRY_AGAIN, TRY_AGAIN_SILENT, NEXT_TIME, ANSWER_IS, NEXT_TIME_REVIEW) else emptyList()
+        if (enabled) listOf(opening, CHECK_OPEN, CHECK_KEPT, CHECK_FADED, CHECK_LATER, EASE_OFF, BONUS, REPEAT, PRAISE_PASS, REMEMBER, RIGHT, REVERSE, MEANING, LAST_CHECK, TRY_AGAIN, TRY_AGAIN_SILENT, NEXT_TIME, ANSWER_IS, NEXT_TIME_REVIEW) else emptyList()
 
     // endregion
 
@@ -361,6 +413,10 @@ class EnglishCoach(context: Context) {
         val meaning = "‘${word.korean}’."
         val english = word.english
         val lines = when {
+            isCheck(word) -> listOf(
+                Line(CHECK_OPEN),
+                Line("$meaning 영어로 뭐였지?", pauseAfterMs = THINK_MS, listenFor = word),
+            )
             stage == 0 && short -> listOf(
                 Line("$meaning 영어로는,"),
                 Line(english, Lang.EN, pauseAfterMs = THINK_SHORT_MS, listenFor = word),
@@ -403,6 +459,10 @@ class EnglishCoach(context: Context) {
     fun feedback(word: Word, passed: Boolean, heard: String?, retry: Boolean): List<Line> {
         val stage = progress[word.id]?.stage ?: 0
         return when {
+            // 꿈 구슬 닦기: 결과에 따른 말은 [finishCheck]가 덧붙입니다.
+            isCheck(word) && !passed ->
+                listOf(Line(ANSWER_IS), Line(word.english, Lang.EN, pauseAfterMs = 400)) +
+                    if (heard == null) listOf(Line(CHECK_LATER)) else emptyList()
             passed && stage == 0 -> listOf(Line(PRAISE_PASS))
             passed -> listOf(Line(RIGHT), Line(word.english, Lang.EN))
             retry -> listOf(Line(if (heard == null) TRY_AGAIN_SILENT else TRY_AGAIN), Line(word.english, Lang.EN, pauseAfterMs = THINK_MS, listenFor = word))
@@ -439,8 +499,8 @@ class EnglishCoach(context: Context) {
             .sortedBy { progress.getValue(it.id).day }
 
     /**
-     * 이번에 새로 배울 말. 세 갈래에서 하나씩 번갈아 꺼냅니다.
-     *   1) 지금 레벨의 손으로 쓴 말   2) 낱말(레벨 2부터도 계속)   3) 익힌 낱말로 만든 문장(레벨 2부터)
+     * 이번에 새로 배울 말. 여러 갈래에서 하나씩 번갈아 꺼냅니다.
+     *   1) 지금 레벨과 그 아래 레벨의 손으로 쓴 말   2) 낱말(레벨 2부터도 계속)   3) 익힌 낱말로 만든 문장(레벨 2부터)
      * 낱말은 상황에 맞는 것을 먼저, 나머지는 주제를 돌아가며 고릅니다([WordPicker]).
      */
     private fun freshPicks(limit: Int = newPerTrip()): List<WordPicker.Pick> {
@@ -450,7 +510,11 @@ class EnglishCoach(context: Context) {
         if (level == 1) {
             sources += vocabulary.iterator()
         } else {
-            sources += unseenFixed(level).map { WordPicker.Pick(it, null) }.iterator()
+            // 지금 레벨의 말과 함께, 아래 레벨에서 아직 못 만난 표현도 계속 냅니다. 강아지가 빨리 자라 레벨이
+            // 먼저 올라가도(60단계에 문장) 짧은 표현이 통째로 건너뛰어지지 않게 하려는 것입니다.
+            for (fixedLevel in level downTo 2) {
+                sources += unseenFixed(fixedLevel).map { WordPicker.Pick(it, null) }.iterator()
+            }
             sources += vocabulary.iterator()
             sources += Sentences.candidates(
                 nouns = masteredOf(Tag.NOUN, Tag.MASS),
@@ -490,14 +554,16 @@ class EnglishCoach(context: Context) {
         for (id in saved.keys()) {
             if (WordBank.find(id) == null) continue
             val item = saved.optJSONObject(id) ?: continue
-            progress[id] = Progress(item.optInt("stage"), item.optLong("day", NEVER), item.optBoolean("mastered"))
+            progress[id] = Progress(item.optInt("stage"), item.optLong("day", NEVER), item.optBoolean("mastered"), item.optInt("checks"))
         }
     }
 
     private fun save() {
         val words = JSONObject()
         for ((id, state) in progress) {
-            words.put(id, JSONObject().put("stage", state.stage).put("day", state.day).put("mastered", state.mastered))
+            val item = JSONObject().put("stage", state.stage).put("day", state.day).put("mastered", state.mastered)
+            if (state.checks > 0) item.put("checks", state.checks)
+            words.put(id, item)
         }
         prefs.edit()
             .putBoolean(KEY_ENABLED, enabled)
@@ -518,6 +584,10 @@ class EnglishCoach(context: Context) {
         private val REVIEW_AFTER_DAYS = listOf(1, 1, 2)
 
         private const val MAX_REVIEWS_PER_TRIP = 4
+
+        /** 꿈 구슬이 된 뒤 다시 확인하기까지의 날수: 2주 뒤, 그리고 그로부터 한 달 뒤. */
+        private val CHECK_AFTER_DAYS = listOf(14, 30)
+        private const val MAX_CHECKS_PER_TRIP = 1
         private const val MAX_NEW_PER_TRIP = 3
         private const val MAX_RECAP_WORDS = 4
 
@@ -548,6 +618,10 @@ class EnglishCoach(context: Context) {
         private const val REVERSE = "이번엔 거꾸로 물어볼게."
         private const val MEANING = "무슨 뜻이었지?"
         private const val LAST_CHECK = "마지막 확인!"
+        private const val CHECK_OPEN = "오랜만에 꿈 구슬 하나 닦아 볼까?"
+        private const val CHECK_KEPT = "아직도 기억하네! 구슬이 더 반짝반짝해졌어."
+        private const val CHECK_FADED = "구슬이 조금 흐려졌네. 괜찮아, 다시 배우면 금방 반짝일 거야."
+        private const val CHECK_LATER = "다음에 또 닦아 보자."
 
         private const val KEY_ENABLED = "enabled"
         private const val KEY_LEVEL = "level"
