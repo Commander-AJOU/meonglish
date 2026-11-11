@@ -60,7 +60,7 @@ export const SceneSecret: React.FC = () => {
 
       <div style={{ position: "absolute", left: 1110, top: 250, width: 730 }}>
         <div style={{ transform: `scale(${frame >= PRESS - 14 ? pop(frame, PRESS - 14) : 0})`, transformOrigin: "0 50%" }}>
-          <div style={{ fontSize: 32, color: "rgba(255,255,255,0.7)", marginBottom: 10 }}>① 왼쪽 위 장 제목을 길게 꾹</div>
+          <div style={{ fontSize: 32, color: "rgba(255,255,255,0.7)", marginBottom: 10 }}>① 왼쪽 위 장 제목을 길게 꾹 · 달리는 중엔 톡 한 번</div>
           <Pill size={50} bg="rgba(10,9,32,0.55)" style={{ border: `4px solid ${C.yellow}` }}>
             하늘 길로 출발 <span style={{ color: C.yellow, fontSize: 36 }}>← 꾹 누르기</span>
           </Pill>

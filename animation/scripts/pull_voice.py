@@ -4,17 +4,19 @@ import hashlib, shutil, sys, os
 cache, out = sys.argv[1], sys.argv[2]
 MODEL, VOICE = "eleven_v3", "cgSgspJ2msm6clMCkdW9"
 LINES = {
-    "left_ko": "왼쪽!", "left_en": "Left", "right_ko": "오른쪽!", "right_en": "Right",
+    "left_en": "Left", "right_en": "Right",
+    "react": "구름이 왼쪽으로 스르르 기울었어요. 콩이가 구름 꼬리를 꼭 붙잡았어요.",
+    "recall": "아까 구름이 왼쪽으로 기울었지?", "leftq": "‘왼쪽’. 영어로는,",
+    "feed_ok": "냠냠! 고마워, 서준아! 정말 맛있다!",
     "right_answer": "맞아!", "treat": "딩동! 콩이의 간식이 하나 생겼어.",
     "repeat": "따라 해 볼까?", "pass": "잘했어! 통과!",
-    "rain_en": "Rain", "stop_en": "Stop", "seatbelt_en": "Seatbelt",
     "cloud_q": "‘구름’. 영어로 뭐였지?", "cloud_en": "Cloud",
     "note_ask": "서준아, 오늘 블록하다가 넘어져서 무릎을 다쳤다며? 어땠어?",
     "note_comfort": "아프면 내 품에 기대도 돼. 내가 꼭 지켜 줄게.",
     "calm_1": "서준아, 속상했구나. 괜찮아, 콩이가 옆에 있어.",
     "calm_2": "우리 같이 후 하고 숨 쉬어 볼까? 후.",
     "bigdog_q": "‘큰 개’. 영어로 뭐였지?", "bigdog_en": "A big dog",
-    "navi_right": "콩이가 귀를 쫑긋 세웠어요. 길 안내 요정이 오른쪽으로 돌아가래. 우리 달빛 섬은 그쪽인가 봐!",
+    "navi_left": "콩이가 귀를 쫑긋! 길 안내 요정이 알려 준 대로 구름이 왼쪽으로 돌았어요. 우리 달빛 섬은 이쪽인가 봐!",
 }
 for name, text in LINES.items():
     h = hashlib.sha1(f"{MODEL}|{VOICE}|{text}".encode()).hexdigest()

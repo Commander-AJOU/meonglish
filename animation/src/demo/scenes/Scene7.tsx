@@ -2,7 +2,7 @@ import { AbsoluteFill, interpolate, useCurrentFrame } from "remotion";
 import { Header, Pill } from "../parts/Bits";
 import { C, FONT, pop, s } from "../theme";
 
-/** 앱의 복습 일정(README '복습'): 서로 다른 날에 네 번 만나면 꿈 구슬. */
+/** 앱의 복습 일정(README '진도 규칙'): 서로 다른 날에 네 번 만나면 꿈 구슬, 그 뒤에도 2주 뒤에 다시 닦습니다. */
 const STEPS = [
   { day: "1일째", what: "새로 배움" },
   { day: "다음 날", what: "다시 묻기" },
@@ -69,7 +69,7 @@ export const Scene7: React.FC = () => {
           }}
         />
         <div style={{ fontSize: 46, color: gold ? C.yellow : "#FFFFFF", marginTop: 7 }}>꿈 구슬</div>
-        <div style={{ fontSize: 36, color: "#FFFFFF", opacity: 0.7, marginTop: 6 }}>졸업!</div>
+        <div style={{ fontSize: 36, color: "#FFFFFF", opacity: 0.7, marginTop: 6 }}>2주 뒤 다시 닦기</div>
       </div>
       {/* 낱말 카드 */}
       {reached > 0 ? (

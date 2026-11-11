@@ -1,16 +1,18 @@
 import { Video } from "@remotion/media";
 import { AbsoluteFill, interpolate, staticFile, useCurrentFrame } from "remotion";
+import { Header, Pill } from "../parts/Bits";
 import { DeviceFrame } from "../parts/DeviceFrame";
-import { Arrow, BeltIcon, BrakeIcon, WiperIcon } from "../parts/Icons";
-import { C, FONT, WIDTH, pop, s } from "../theme";
+import { Arrow } from "../parts/Icons";
+import { PuppyOnCloud } from "../parts/Puppy";
+import { C, FONT, pop, s } from "../theme";
+import { TURN } from "../timeline";
 
-/** 녹화한 앱 화면에서 강아지가 기울기 시작하는 때(초). 이때가 장면의 SIGNAL 시각과 겹치게 자릅니다. */
-const CLIP_TILT = 19.65;
-const SIGNAL = s(2.1);
-const SIGNAL_OFF = s(7.15);
-const HERO_OUT = s(8.4);
+/** 녹화한 앱 화면(clips/turn.mp4)에서 깜빡이를 켠 때(초). 이때가 장면의 SIGNAL 시각과 겹치게 자릅니다. */
+const CLIP_ON = 3.03;
+const SIGNAL = s(TURN.on);
+const SIGNAL_OFF = s(TURN.off);
+const HERO_OUT = s(TURN.recallAt - 0.7);
 const BLINK = 20; // 프레임. 켜짐 10 + 꺼짐 10
-
 const Label: React.FC<{ children: React.ReactNode; left: number; width: number; at: number }> = ({ children, left, width, at }) => {
   const frame = useCurrentFrame();
   const k = pop(frame, at, false);
@@ -50,11 +52,17 @@ const Hero: React.FC = () => {
   return (
     <AbsoluteFill style={{ opacity: 1 - exit }}>
       <Label left={90} width={480} at={10}>
-        ① 운전자가 방향지시등을 켜면
+        ① 깜빡이를 켜고 도는 동안
       </Label>
-      <Label left={820} width={deviceWidth} at={16}>
-        ② 앱이 바로 그 말을 가르칩니다 <span style={{ opacity: 0.6 }}>· 실제 앱 화면</span>
-      </Label>
+      {frame < SIGNAL_OFF + 6 ? (
+        <Label left={820} width={deviceWidth} at={16}>
+          ② 말없이 화면 속 구름만 기울어요 <span style={{ opacity: 0.6 }}>· 실제 앱 화면</span>
+        </Label>
+      ) : (
+        <Label left={820} width={deviceWidth} at={SIGNAL_OFF + 6}>
+          ③ 다 돌고 나면, 이야기로 한마디 <span style={{ opacity: 0.6 }}>· 실제 앱 화면</span>
+        </Label>
+      )}
 
       {/* 계기판 */}
       <div style={{ position: "absolute", left: 140 - exit * 500, top: 200, width: 380, height: 380, transform: `scale(${gauge})` }}>
@@ -110,14 +118,16 @@ const Hero: React.FC = () => {
           boxShadow: "0 6px 0 rgba(0,0,0,0.22)",
         }}
       >
-        0.03초
+        {frame < SIGNAL_OFF ? "조용히" : "다 돌았어요"}
       </div>
 
-      {/* 앱이 하는 말 */}
-      <div style={{ position: "absolute", left: 90 - exit * 500, top: 640, width: 480, textAlign: "center", fontFamily: FONT, lineHeight: 1.05 }}>
-        <div style={{ fontSize: 70, color: "#FFFFFF", transform: `scale(${ko})`, opacity: Math.min(1, ko * 2) }}>“왼쪽!”</div>
-        <div style={{ fontSize: 150, color: C.yellow, transform: `scale(${en}) rotate(-3deg)`, opacity: Math.min(1, en * 2), textShadow: "0 8px 0 rgba(23,19,95,0.55)" }}>
-          Left!
+      {/* 운전자에게 하는 약속 */}
+      <div style={{ position: "absolute", left: 90 - exit * 500, top: 650, width: 480, textAlign: "center", fontFamily: FONT, lineHeight: 1.2 }}>
+        <div style={{ fontSize: 46, color: "#FFFFFF", transform: `scale(${ko})`, opacity: Math.min(1, ko * 2) }}>
+          {frame < SIGNAL_OFF ? "운전에 집중할 때는" : "운전이 끝난 뒤에"}
+        </div>
+        <div style={{ fontSize: 64, color: C.yellow, transform: `scale(${frame < SIGNAL_OFF ? en : pop(frame, SIGNAL_OFF + 4)})`, opacity: Math.min(1, en * 2) }}>
+          {frame < SIGNAL_OFF ? "말하지 않아요" : "이야기가 받아 줘요"}
         </div>
       </div>
 
@@ -125,8 +135,8 @@ const Hero: React.FC = () => {
       <div style={{ position: "absolute", left: 820 + (1 - enter) * 1200 + exit * 1200, top: 160 }}>
         <DeviceFrame width={deviceWidth} ratio={1682 / 1210}>
           <Video
-            src={staticFile("demo/clips/hero.mp4")}
-            trimBefore={Math.round(CLIP_TILT * 30) - SIGNAL}
+            src={staticFile("demo/clips/turn.mp4")}
+            trimBefore={Math.round(CLIP_ON * 30) - SIGNAL}
             muted
             style={{ width: "100%", height: "100%", objectFit: "cover" }}
           />
@@ -136,92 +146,47 @@ const Hero: React.FC = () => {
   );
 };
 
-type CardSpec = { cue: string; word: string; meaning: string; color: string; icon: (frame: number) => React.ReactNode };
-
-const CARDS: CardSpec[] = [
-  { cue: "와이퍼를 켜면", word: "Rain", meaning: "비", color: C.blue, icon: (f) => <WiperIcon swing={Math.sin(f / 4)} /> },
-  { cue: "브레이크를 밟으면", word: "Stop", meaning: "멈춰", color: C.pink, icon: () => <BrakeIcon /> },
-  { cue: "안전벨트를 매면", word: "Seatbelt", meaning: "안전벨트", color: "#D97706", icon: () => <BeltIcon /> },
-];
-const CARD_W = 440;
-const CARD_H = 470;
-
-const Card: React.FC<{ spec: CardSpec; at: number; cx: number }> = ({ spec, at, cx }) => {
+/** 뒷부분: 그 움직임의 영어는 다음 장 사이 수업에서, 아까 그 순간을 떠올리며 배웁니다. */
+const Recall: React.FC = () => {
   const frame = useCurrentFrame();
-  if (frame < at) return null;
-  const k = pop(frame, at);
-  const flip = interpolate(frame, [at + 20, at + 32], [0, 180], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-  const front = flip < 90;
-  const word = pop(frame, at + 26);
+  const at = s(TURN.recallAt);
+  if (frame < at - 4) return null;
+  const q = s(TURN.recall);
+  const m = s(TURN.meaning);
+  const e = s(TURN.english);
+  const line = frame >= m ? "‘왼쪽’. 영어로는," : "아까 구름이 왼쪽으로 기울었지?";
+  const bubble = frame >= q ? pop(frame, frame >= m ? m : q) : 0;
   return (
-    <div style={{ position: "absolute", left: cx - CARD_W / 2, top: 320, width: CARD_W, height: CARD_H, perspective: 1400 }}>
-      <div
-        style={{
-          width: "100%",
-          height: "100%",
-          borderRadius: 48,
-          transform: `scale(${k}) rotateY(${front ? flip : flip - 180}deg)`,
-          background: front ? "linear-gradient(160deg, #332FA0 0%, #1D1A66 100%)" : "#FFFFFF",
-          border: front ? "5px solid rgba(255,255,255,0.3)" : "5px solid #FFFFFF",
-          boxShadow: "0 24px 60px rgba(8,6,40,0.5)",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          fontFamily: FONT,
-          boxSizing: "border-box",
-        }}
-      >
-        {front ? (
-          <>
-            {spec.icon(frame - at)}
-            <div style={{ fontSize: 44, color: "#FFFFFF", marginTop: 34 }}>{spec.cue}</div>
-          </>
-        ) : (
-          <>
-            <div style={{ fontSize: 36, color: C.ink, opacity: 0.55, marginBottom: 26 }}>{spec.cue}</div>
-            <div style={{ fontSize: spec.word.length > 6 ? 90 : 104, color: spec.color, transform: `scale(${word})` }}>{spec.word}</div>
-            <div style={{ fontSize: 46, color: C.ink, opacity: 0.7, marginTop: 18 }}>{spec.meaning}</div>
-          </>
-        )}
+    <AbsoluteFill style={{ fontFamily: FONT }}>
+      <Header at={at} text="영어는 다음 수업에서, " hi="아까 그 순간을 떠올리며" />
+      <div style={{ position: "absolute", left: 300, top: 470, opacity: pop(frame, at, false), transform: `rotate(${frame >= q && frame < m ? -7 : 0}deg)`, transformOrigin: "50% 80%" }}>
+        <PuppyOnCloud stage={2} size={420} happy={frame >= e} />
       </div>
-    </div>
-  );
-};
-
-/** 뒷부분: 다른 차량 신호들도 영어가 됩니다. */
-const Montage: React.FC<{ from: number }> = ({ from }) => {
-  const frame = useCurrentFrame();
-  if (frame < from) return null;
-  const head = pop(frame, from, false);
-  return (
-    <AbsoluteFill>
-      <div
-        style={{
-          position: "absolute",
-          top: 150,
-          width: WIDTH,
-          textAlign: "center",
-          fontFamily: FONT,
-          fontSize: 68,
-          color: "#FFFFFF",
-          opacity: head,
-          transform: `translateY(${(1 - head) * 24}px)`,
-        }}
-      >
-        차가 움직일 때마다, <span style={{ color: C.yellow }}>그 순간의 영어</span>
-      </div>
-      {CARDS.map((spec, i) => (
-        <Card key={spec.word} spec={spec} at={from + 6 + i * s(1.4)} cx={400 + i * 560} />
-      ))}
+      {frame >= q ? (
+        <div style={{ position: "absolute", left: 760, top: 330, width: 900, transform: `scale(${bubble})`, transformOrigin: "0% 100%" }}>
+          <div style={{ background: "#FFFFFF", color: C.ink, fontSize: 58, lineHeight: 1.25, borderRadius: 44, padding: "30px 44px 24px", textAlign: "center", boxShadow: "0 10px 0 rgba(0,0,0,0.2)" }}>
+            {line}
+          </div>
+        </div>
+      ) : null}
+      {frame >= e ? (
+        <div style={{ position: "absolute", left: 760, top: 560, width: 900, textAlign: "center", transform: `scale(${pop(frame, e)}) rotate(-3deg)` }}>
+          <div style={{ fontSize: 170, color: C.yellow, textShadow: "0 8px 0 rgba(23,19,95,0.55)" }}>Left!</div>
+        </div>
+      ) : null}
+      {frame >= q ? (
+        <div style={{ position: "absolute", left: 1210, top: 830, transform: `scale(${pop(frame, q + 6)})` }}>
+          <Pill size={36} bg="rgba(10,9,32,0.55)">실제 앱의 다음 수업 대사</Pill>
+        </div>
+      ) : null}
     </AbsoluteFill>
   );
 };
 
-/** 장면 3(핵심): 차량 신호가 켜지는 바로 그때 영어를 가르칩니다. */
+/** 장면 3(핵심): 차가 움직이는 동안은 조용히, 다 움직인 뒤에 이야기로, 영어는 다음 수업에서. */
 export const Scene3: React.FC = () => (
   <AbsoluteFill>
     <Hero />
-    <Montage from={s(8.7)} />
+    <Recall />
   </AbsoluteFill>
 );

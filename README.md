@@ -282,9 +282,9 @@ cd animation && npm install && bash scripts/export.sh
 
 ## 시연 영상
 
-[`docs/demo/ajik-meoreosseo-demo.mp4`](docs/demo/ajik-meoreosseo-demo.mp4) — 1920×1080, 2분 32초.
-"아직 멀었어?"로 시작해 "벌써 다 왔어?"로 끝나는 모션그래픽이고, 차량 화면 틀 안의 장면(방향지시등 → Left,
-따라 말하기 → 통과, 간식 주기, 오늘 있었던 일을 묻는 이야기, 비밀 버튼, 익힌 낱말로 만든 표현 "A big dog")은 Pleos Connect 에뮬레이터에서 녹화한 실제 앱 화면입니다.
+[`docs/demo/ajik-meoreosseo-demo.mp4`](docs/demo/ajik-meoreosseo-demo.mp4) — 1920×1080, 2분 47초.
+"아직 멀었어?"로 시작해 "벌써 다 왔어?"로 끝나는 모션그래픽이고, 차량 화면 틀 안의 장면(깜빡이를 켠 동안 말없이 기울고 끈 뒤 이야기로 받아 주기,
+따라 말하기 → 통과, 도착해서 "Here you are!"로 간식 주기, 오늘 있었던 일을 묻는 이야기, 비밀 버튼, 익힌 낱말로 만든 표현 "A big dog")은 Pleos Connect 에뮬레이터에서 녹화한 실제 앱 화면입니다.
 "이야기는 매일 새로 씁니다" 장면의 세 편은 앱이 11월 8·9·10일에 실제로 쓴 이야기의 제목과 문장입니다.
 영상 속 아이 이름 "서준"은 가상의 이름입니다.
 
@@ -292,7 +292,7 @@ cd animation && npm install && bash scripts/export.sh
 
 ```bash
 cd animation && npm install
-python3 scripts/make_music.py 151.7          # 오르골풍 배경 음악과 효과음을 직접 합성(표준 라이브러리만 사용)
+python3 scripts/make_music.py 167.1          # 오르골풍 배경 음악과 효과음을 직접 합성(표준 라이브러리만 사용)
 bash scripts/narrate.sh <목소리ID> a_ "n1=문장" …   # 내레이션(ElevenLabs, 키는 secrets.properties에서 읽음)
 python3 scripts/pull_voice.py <앱 음성 저장 폴더> public/demo/app   # 앱이 만들어 둔 강아지 목소리 꺼내기
 npx remotion render Demo ../docs/demo/ajik-meoreosseo-demo.mp4
@@ -300,7 +300,8 @@ npx remotion render Demo ../docs/demo/ajik-meoreosseo-demo.mp4
 
 - 소리는 세 겹입니다: 내레이터(강아지와 다른 어른 목소리), 앱이 실제로 내는 강아지 목소리, 음악·효과음.
 - 장면 시각·자막·소리는 `animation/src/demo/timeline.ts` 한 곳에서 맞춥니다.
-- 따라 말하기 장면의 아이 목소리는 마이크 대신 시험용 음성을 인식기에 넣은 것입니다(에뮬레이터에는 마이크가 없음).
+- 따라 말하기와 간식 주기 장면의 아이 목소리는 마이크 대신 시험용 음성을 인식기에 넣은 것입니다(에뮬레이터에는 마이크가 없음).
+- 깜빡이 장면의 "다음 수업" 부분과 내비 장면은 앱의 실제 대사·음성을 그래픽으로 다시 보여 준 것입니다.
 
 ## 실행 방법
 

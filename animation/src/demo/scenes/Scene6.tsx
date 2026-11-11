@@ -13,8 +13,10 @@ const ASK_AT = s(STORY.ask);
 const COMFORT_AT = s(STORY.comfort);
 const FIT_AT = s(STORY.fit);
 const NAVI_AT = s(STORY.navi);
-const PAUSE_AT = NAVI_AT + s(2.0);
-const REPLY_AT = NAVI_AT + s(4.6);
+const PAUSE_AT = NAVI_AT + s(2.4);
+/** 차가 다 돈 때와, 그 뒤 강아지가 지난 일로 받아 주는 때. */
+const TURNED_AT = NAVI_AT + s(5.0);
+const REPLY_AT = NAVI_AT + s(6.6);
 
 /**
  * 앱이 그날 실제로 쓴 이야기(기기에 저장된 files/stories/날짜.json에서 옮김). 제목의 '콩이'는 강아지 이름 자리에 들어간 것.
@@ -341,7 +343,7 @@ const Bars: React.FC<{ on: boolean; color: string }> = ({ on, color }) => {
   );
 };
 
-/** 6-3: 내비가 말하면 멈췄다가, 이야기 속 말로 받아 줍니다. */
+/** 6-3: 내비가 말하고 차가 도는 동안은 기다렸다가, 다 돈 뒤에 이야기 속 말로 받아 줍니다. */
 const Navi: React.FC = () => {
   const frame = useCurrentFrame();
   const naviIn = pop(frame, NAVI_AT + 6);
@@ -373,12 +375,12 @@ const Navi: React.FC = () => {
           <Bars on={naviTalking} color={C.green} />
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 30, marginTop: 34 }}>
-          <svg width={130} height={130} viewBox="0 0 130 130">
-            <path d="M34 118 L34 62 Q34 44 52 44 L84 44 L84 20 L122 56 L84 92 L84 68 L58 68 L58 118 Z" fill={C.green} />
+          <svg width={130} height={130} viewBox="0 0 130 130" style={{ transform: "scaleX(-1)" }}>
+            <path d="M34 118 L34 62 Q34 44 52 44 L84 44 L84 20 L122 56 L84 92 L84 68 L58 68 L58 118 Z" fill={frame >= TURNED_AT ? "#9CA3AF" : C.green} />
           </svg>
           <div>
-            <div style={{ fontSize: 76, lineHeight: 1 }}>300m</div>
-            <div style={{ fontSize: 46, marginTop: 10 }}>앞에서 우회전</div>
+            <div style={{ fontSize: 76, lineHeight: 1 }}>{frame >= TURNED_AT ? "✓" : "300m"}</div>
+            <div style={{ fontSize: 46, marginTop: 10 }}>{frame >= TURNED_AT ? "좌회전 완료" : "앞에서 좌회전"}</div>
           </div>
         </div>
       </div>
@@ -390,7 +392,7 @@ const Navi: React.FC = () => {
       {paused ? (
         <div style={{ position: "absolute", left: 1360, top: 470, transform: `scale(${pop(frame, NAVI_AT + 12)})`, transformOrigin: "0 50%" }}>
           <Pill size={44} bg="rgba(10,9,32,0.55)">
-            <span style={{ letterSpacing: 4 }}>❙❙</span> 잠깐 멈춤
+            <span style={{ letterSpacing: 4 }}>❙❙</span> {frame >= PAUSE_AT + 20 ? "도는 동안 조용히" : "잠깐 멈춤"}
           </Pill>
         </div>
       ) : null}
@@ -408,7 +410,7 @@ const Navi: React.FC = () => {
               boxShadow: "0 10px 0 rgba(0,0,0,0.2)",
             }}
           >
-            길 안내 요정이 <span style={{ color: C.pink }}>오른쪽</span>으로 돌아가래!
+            길 안내 요정이 알려 준 대로 구름이 <span style={{ color: C.pink }}>왼쪽</span>으로 돌았어요!
           </div>
           <svg width={60} height={50} viewBox="0 0 60 50" style={{ position: "absolute", left: 300, bottom: -44 }}>
             <path d="M6 0 L54 0 L20 48 Z" fill="#FFFFFF" />
@@ -426,7 +428,7 @@ export const Scene6: React.FC<{ duration: number }> = ({ duration }) => (
     <Header at={CHIPS_AT + 2} until={NOTE_AT - 8} text="그리고 " hi="그날의 상황에 맞춰" />
     <Header at={NOTE_AT + 2} until={FIT_AT - 8} text="오늘 있었던 일이 " hi="이야기 속으로" />
     <Header at={FIT_AT + 2} until={NAVI_AT - 8} text="남은 시간에 " hi="꼭 맞게" />
-    <Header at={NAVI_AT + 2} text="내비가 말하면, " hi="이야기가 받아 줘요" />
+    <Header at={NAVI_AT + 2} text="다 돌고 나면, " hi="이야기가 받아 줘요" />
     <Phase start={0} end={CHIPS_AT}>
       <Daily />
     </Phase>

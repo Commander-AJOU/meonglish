@@ -12,10 +12,18 @@ export const STORY = {
   comfort: 20.3,
   fit: 24.7,
   navi: 30.4,
-  end: 38.1,
+  end: 41.4,
   clipAsk: 1.17,
   clipComfort: 10.93,
 };
+
+/**
+ * 깜빡이 장면(장면 3) 안의 시각(초): 켜짐 → 꺼짐 → 이야기 반응(녹화한 화면과 같은 간격) → 다음 수업에서 떠올리기.
+ */
+export const TURN = { on: 2.1, off: 8.17, react: 11.25, recallAt: 14.6, recall: 15.0, meaning: 17.5, english: 19.7, end: 21.6 };
+
+/** 간식 장면(장면 5) 앞에 붙은 "말로 간식 주기" 부분의 길이(초). 그 뒤의 시각은 모두 이만큼 밀립니다. */
+export const FEED_INTRO = 4.5;
 
 /** 비밀 버튼 장면 안의 시각(초). clipCalm은 clips/secret.mp4에서 달래는 말이 시작되는 때. */
 export const SECRET = { press: 3.5, calm1: 4.3, calm2: 9.2, end: 14.3, clipCalm: 7.97 };
@@ -26,9 +34,10 @@ export const SENTENCE = { ask: 3.5, pass: 8.03, english: 9.46, card2: 11.6, end:
 /** 낱말 장면 안의 시각(초): 규모 → 상황에 맞는 낱말 → 아이 속도에 맞춘 양. */
 export const WORDS = { pick: 5.4, pace: 10.6, end: 17.3 };
 
-const TW = 39;
+const T4 = 13 + TURN.end;
+const TW = T4 + 12;
 const T5 = TW + WORDS.end;
-const T6 = T5 + 13.6;
+const T6 = T5 + 13.6 + FEED_INTRO;
 const TS = T6 + STORY.end;
 const T7 = TS + SECRET.end;
 const TN = T7 + 7;
@@ -38,10 +47,10 @@ const T8 = TN + SENTENCE.end;
 export const SCENE = {
   one: { from: 0, duration: s(7) },
   two: { from: s(6.6), duration: s(6.4) },
-  three: { from: s(13), duration: s(14) },
-  four: { from: s(27), duration: s(12) },
+  three: { from: s(13), duration: s(TURN.end) },
+  four: { from: s(T4), duration: s(12) },
   words: { from: s(TW), duration: s(WORDS.end) },
-  five: { from: s(T5), duration: s(13.6) },
+  five: { from: s(T5), duration: s(13.6 + FEED_INTRO) },
   six: { from: s(T6), duration: s(STORY.end) },
   secret: { from: s(TS), duration: s(SECRET.end) },
   seven: { from: s(T7), duration: s(7) },
@@ -59,17 +68,17 @@ export type Cue = { at: number; src: string; seconds: number; text?: string; rat
 export const NARRATION: Cue[] = [
   { at: 0.5, src: "demo/vo/a_n1.mp3", seconds: 3.12, text: "차에 타면 꼭 나오는 말. “아직 멀었어?”" },
   { at: 7.3, src: "demo/vo/a_n2.mp3", seconds: 4.88, text: "이제 그 시간이, 영어를 배우고 강아지를 키우는 시간이 됩니다." },
-  { at: 13.3, src: "demo/vo/a_n3a.mp3", seconds: 2.64, text: "운전자가 방향지시등을 켜는 순간," },
-  { at: 18.0, src: "demo/vo/a_n3b.mp3", seconds: 3.28, text: "차가 움직이는 바로 그때, 그 말을 영어로 배웁니다." },
-  { at: 27.3, src: "demo/vo/a_n4a.mp3", seconds: 1.6, text: "따라 말하면 차가 듣고," },
-  { at: 36.5, src: "demo/vo/a_n4b.mp3", seconds: 2.0, text: "통과하면 간식이 생깁니다." },
+  { at: 13.3, src: "demo/vo/a_r3a.mp3", seconds: 4.72, text: "운전자가 깜빡이를 켜고 도는 동안, 강아지는 조용히 기다립니다." },
+  { at: 13 + 8.25, src: "demo/vo/a_r3b.mp3", seconds: 2.96, text: "다 돌고 나면, 이야기가 그 일을 받아 줍니다." },
+  { at: T4 + 0.3, src: "demo/vo/a_n4a.mp3", seconds: 1.6, text: "따라 말하면 차가 듣고," },
+  { at: T4 + 9.5, src: "demo/vo/a_n4b.mp3", seconds: 2.0, text: "통과하면 간식이 생깁니다." },
   // 낱말 장면
   { at: TW + 0.3, src: "demo/vo/a_v1.mp3", seconds: 4.56, text: "낱말만 천 개가 넘고, 표현과 문장도 삼백 개가 넘습니다." },
   { at: TW + WORDS.pick + 0.3, src: "demo/vo/a_v2.mp3", seconds: 4.32, text: "그중 무엇을 먼저 배울지는, 차가 지금 상황을 보고 고릅니다." },
   { at: TW + WORDS.pace + 0.3, src: "demo/vo/a_v3.mp3", seconds: 6.0, text: "잘 따라 하면 조금 더, 힘들어하면 조금 덜. 아이의 속도에 맞춥니다." },
-  { at: T5 + 0.3, src: "demo/vo/a_n5a.mp3", seconds: 2.64, text: "모은 간식을 주면 강아지가 자랍니다." },
-  { at: T5 + 5.2, src: "demo/vo/a_n5b.mp3", seconds: 1.76, text: "이름은 아이가 지어 주고요." },
-  { at: T5 + 7.9, src: "demo/vo/a_n5c.mp3", seconds: 4.24, text: "집에는 새 물건이 열리고, 배운 말은 카드로 모입니다." },
+  { at: T5 + 0.3, src: "demo/vo/a_r5a.mp3", seconds: 6.0, text: "도착해서 아이가 “Here you are!” 하고 말하면, 강아지가 간식을 받아먹고 자랍니다." },
+  { at: T5 + FEED_INTRO + 5.2, src: "demo/vo/a_n5b.mp3", seconds: 1.76, text: "이름은 아이가 지어 주고요." },
+  { at: T5 + FEED_INTRO + 7.9, src: "demo/vo/a_n5c.mp3", seconds: 4.24, text: "집에는 새 물건이 열리고, 배운 말은 카드로 모입니다." },
   // 장면 6: 이야기
   { at: T6 + 0.3, src: "demo/vo/a_m1.mp3", seconds: 3.1, text: "이야기는 매일, 생성형 AI가 새로 씁니다." },
   { at: T6 + 4.0, src: "demo/vo/a_m2.mp3", seconds: 3.36, text: "같은 길이어도, 어제와는 다른 모험이 됩니다." },
@@ -77,10 +86,10 @@ export const NARRATION: Cue[] = [
   { at: T6 + 10.9, src: "demo/vo/a_m4.mp3", seconds: 2.32, text: "부모가 오늘 있었던 일을 적어 두면," },
   { at: T6 + 18.2, src: "demo/vo/a_m5.mp3", seconds: 1.84, text: "강아지가 먼저 물어봐 줍니다." },
   { at: T6 + STORY.fit + 0.3, src: "demo/vo/a_n6b.mp3", seconds: 4.64, text: "목적지까지 남은 시간에 꼭 맞게, 오늘 배울 말을 담아서." },
-  { at: T6 + STORY.navi + 0.3, src: "demo/vo/a_n6c.mp3", seconds: 4.24, text: "내비가 안내하면 잠시 멈췄다가, 이야기로 받아 줍니다." },
+  { at: T6 + STORY.navi + 0.3, src: "demo/vo/a_r6c.mp3", seconds: 6.16, text: "내비가 안내하고 차가 도는 동안은 기다렸다가, 다 돈 뒤에 이야기로 받아 줍니다." },
   // 비밀 버튼
   { at: TS + 0.3, src: "demo/vo/a_m6.mp3", seconds: 2.96, text: "아이가 울 때는, 어른만 아는 비밀 버튼." },
-  { at: T7 + 0.3, src: "demo/vo/a_n7.mp3", seconds: 4.72, text: "어제 배운 말은 오늘 다시 묻고, 다 익힌 말은 졸업합니다." },
+  { at: T7 + 0.3, src: "demo/vo/a_r7.mp3", seconds: 5.6, text: "어제 배운 말은 오늘 다시 묻고, 다 익힌 말도 잊지 않게 다시 닦아 줍니다." },
   { at: TN + 0.3, src: "demo/vo/a_s1.mp3", seconds: 3.12, text: "익힌 낱말이 모이면, 짧은 표현이 되고," },
   { at: TN + SENTENCE.card2, src: "demo/vo/a_s2.mp3", seconds: 2.56, text: "강아지가 더 자라면, 문장이 됩니다." },
   { at: T8 + 0.4, src: "demo/vo/a_n8.mp3", seconds: 4.16, text: "“아직 멀었어?”가 “벌써 다 왔어?”가 되는 시간." },
@@ -88,20 +97,22 @@ export const NARRATION: Cue[] = [
 
 /** 앱이 실제로 내는 강아지 목소리(앱에 저장된 음성 그대로). 영어는 앱처럼 0.8배로 천천히. */
 export const APP_VOICE: Cue[] = [
-  { at: 15.3, src: "demo/app/left_ko.mp3", seconds: 0.7 },
-  { at: 16.1, src: "demo/app/left_en.mp3", seconds: 0.8, rate: 0.8 },
-  { at: 22.7, src: "demo/app/rain_en.mp3", seconds: 0.8, rate: 0.8 },
-  { at: 24.1, src: "demo/app/stop_en.mp3", seconds: 0.9, rate: 0.8 },
-  { at: 25.5, src: "demo/app/seatbelt_en.mp3", seconds: 1.1, rate: 0.8 },
-  // 장면 4: 녹화한 화면과 같은 간격(질문 29.1초 기준)
-  { at: 29.1, src: "demo/app/cloud_q.mp3", seconds: 2.3 },
-  { at: 33.0, src: "demo/app/right_answer.mp3", seconds: 0.9 },
-  { at: 34.5, src: "demo/app/cloud_en.mp3", seconds: 0.8, rate: 0.8 },
-  { at: 35.63, src: "demo/app/treat.mp3", seconds: 0.78 }, // "딩동!"까지만
+  // 장면 3: 깜빡이를 끈 뒤의 이야기 반응(첫 문장만), 다음 수업에서 떠올리기
+  { at: 13 + TURN.react, src: "demo/app/react.mp3", seconds: 2.94 },
+  { at: 13 + TURN.recall, src: "demo/app/recall.mp3", seconds: 2.32 },
+  { at: 13 + TURN.meaning, src: "demo/app/leftq.mp3", seconds: 2.08 },
+  { at: 13 + TURN.english, src: "demo/app/left_en.mp3", seconds: 0.8, rate: 0.8 },
+  // 장면 4: 녹화한 화면과 같은 간격(질문은 장면 시작 2.1초 뒤)
+  { at: T4 + 2.1, src: "demo/app/cloud_q.mp3", seconds: 2.3 },
+  { at: T4 + 6.0, src: "demo/app/right_answer.mp3", seconds: 0.9 },
+  { at: T4 + 7.5, src: "demo/app/cloud_en.mp3", seconds: 0.8, rate: 0.8 },
+  { at: T4 + 8.63, src: "demo/app/treat.mp3", seconds: 0.78 }, // "딩동!"까지만
+  // 장면 5: 아이가 "Here you are!"라고 말해 간식을 받은 강아지
+  { at: T5 + 6.45, src: "demo/app/feed_ok.mp3", seconds: 3.12 },
   // 장면 6: 오늘 있었던 일을 묻고 위로하는 말, 내비 안내를 받아 주는 말("길 안내 요정이 오른쪽으로 돌아가래." 부분만)
   { at: T6 + STORY.ask, src: "demo/app/note_ask.mp3", seconds: STORY.askLen },
   { at: T6 + STORY.comfort, src: "demo/app/note_comfort.mp3", seconds: 3.92 },
-  { at: T6 + STORY.navi + 4.65, src: "demo/app/navi_right.mp3", seconds: 2.5, trim: 2.78 },
+  { at: T6 + STORY.navi + 6.6, src: "demo/app/navi_left.mp3", seconds: 4.06, trim: 2.0 },
   // 문장 장면: 녹화한 화면과 같은 간격
   { at: TN + SENTENCE.ask, src: "demo/app/bigdog_q.mp3", seconds: 2.56 },
   { at: TN + SENTENCE.pass, src: "demo/app/right_answer.mp3", seconds: 0.9 },
@@ -117,29 +128,33 @@ const sfx = (at: number, name: string, volume: number, seconds = 0.5): Cue => ({
 export const SFX: Cue[] = [
   sfx(2.5, "pop", 0.35), sfx(3.7, "pop", 0.45), sfx(4.7, "pop", 0.6),
   sfx(6.55, "whoosh", 0.8), sfx(7.35, "thud", 0.5), sfx(8.3, "sparkle", 0.3, 1.3),
-  sfx(12.9, "whoosh", 0.8), sfx(15.2, "ding", 0.22, 1.4),
-  sfx(21.6, "whoosh", 0.7), sfx(21.9, "pop", 0.4), sfx(23.3, "pop", 0.4), sfx(24.7, "pop", 0.4),
-  sfx(26.9, "whoosh", 0.7), sfx(31.9, "pop", 0.45), sfx(32.76, "ding", 0.2, 1.4),
+  sfx(12.9, "whoosh", 0.8), sfx(13 + TURN.react - 0.1, "pop", 0.3),
+  sfx(13 + TURN.recallAt - 0.2, "whoosh", 0.7), sfx(13 + TURN.recall - 0.05, "pop", 0.35), sfx(13 + TURN.english - 0.05, "sparkle", 0.3, 1.3),
+  sfx(T4 - 0.1, "whoosh", 0.7), sfx(T4 + 4.9, "pop", 0.45), sfx(T4 + 5.76, "ding", 0.2, 1.4),
   // 낱말 장면
   sfx(TW - 0.1, "whoosh", 0.7), sfx(TW + 0.4, "sparkle", 0.25, 1.3), sfx(TW + WORDS.pick - 0.2, "whoosh", 0.5),
   sfx(TW + WORDS.pick + 0.6, "pop", 0.3), sfx(TW + WORDS.pick + 1.0, "pop", 0.3), sfx(TW + WORDS.pick + 1.4, "pop", 0.3), sfx(TW + WORDS.pick + 1.8, "pop", 0.3),
   sfx(TW + WORDS.pace - 0.2, "whoosh", 0.5),
   // 장면 5
-  sfx(T5 - 0.1, "whoosh", 0.7), sfx(T5 + 1.1, "pop", 0.4), sfx(T5 + 1.9, "pop", 0.4), sfx(T5 + 2.7, "pop", 0.4), sfx(T5 + 3.5, "sparkle", 0.3, 1.3),
-  sfx(T5 + 5.0, "pop", 0.3), sfx(T5 + 7.6, "whoosh", 0.6), sfx(T5 + 10.2, "pop", 0.3),
+  sfx(T5 - 0.1, "whoosh", 0.7), sfx(T5 + 3.3, "pop", 0.35),
+  ...[1.1, 1.9, 2.7].map((at) => sfx(T5 + FEED_INTRO + at, "pop", 0.4)), sfx(T5 + FEED_INTRO + 3.5, "sparkle", 0.3, 1.3),
+  sfx(T5 + FEED_INTRO + 5.0, "pop", 0.3), sfx(T5 + FEED_INTRO + 7.6, "whoosh", 0.6), sfx(T5 + FEED_INTRO + 10.2, "pop", 0.3),
   // 장면 6
   sfx(T6 - 0.1, "whoosh", 0.7), sfx(T6 + 0.4, "pop", 0.3), sfx(T6 + 0.9, "pop", 0.3), sfx(T6 + 1.45, "pop", 0.3),
   sfx(T6 + STORY.chips - 0.2, "whoosh", 0.5), sfx(T6 + STORY.chips + 1.6, "sparkle", 0.25, 1.3),
   sfx(T6 + STORY.note - 0.2, "whoosh", 0.5), sfx(T6 + STORY.ask - 0.1, "pop", 0.35),
-  sfx(T6 + STORY.fit - 0.2, "whoosh", 0.5), sfx(T6 + STORY.navi - 0.2, "whoosh", 0.5), sfx(T6 + STORY.navi + 4.6, "pop", 0.4),
+  sfx(T6 + STORY.fit - 0.2, "whoosh", 0.5), sfx(T6 + STORY.navi - 0.2, "whoosh", 0.5), sfx(T6 + STORY.navi + 6.55, "pop", 0.4),
   // 비밀 버튼
   sfx(TS - 0.1, "whoosh", 0.7), sfx(TS + SECRET.calm1 - 0.1, "ding", 0.18, 1.4),
   // 장면 7, 8
   sfx(T7 - 0.1, "whoosh", 0.7), sfx(T7 + 3.9, "ding", 0.2, 1.4),
   sfx(TN - 0.1, "whoosh", 0.7), sfx(TN + 1.6, "sparkle", 0.25, 1.3), sfx(TN + SENTENCE.pass - 0.2, "ding", 0.2, 1.4), sfx(TN + SENTENCE.card2, "pop", 0.4),
   sfx(T8 - 0.1, "whoosh", 0.7), sfx(T8 + 2.4, "sparkle", 0.3, 1.3),
-  // 방향지시등의 똑·딱(15.1초부터 20.15초까지, 0.67초마다)
-  ...Array.from({ length: 8 }, (_, i) => [sfx(15.1 + i * (2 / 3), "tick", 0.2, 0.1), sfx(15.1 + i * (2 / 3) + 1 / 3, "tock", 0.16, 0.1)]).flat(),
+  // 방향지시등의 똑·딱(켜짐부터 꺼짐까지, 0.67초마다)
+  ...Array.from({ length: Math.floor((TURN.off - TURN.on) * 1.5) }, (_, i) => [
+    sfx(13 + TURN.on + i * (2 / 3), "tick", 0.2, 0.1),
+    sfx(13 + TURN.on + i * (2 / 3) + 1 / 3, "tock", 0.16, 0.1),
+  ]).flat(),
 ];
 
 /** 누가 말하는 동안에는 음악을 낮춥니다. */
