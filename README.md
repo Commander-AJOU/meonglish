@@ -289,7 +289,7 @@ cd animation && npm install && bash scripts/export.sh
 
 [`docs/demo/ajik-meoreosseo-demo.mp4`](docs/demo/ajik-meoreosseo-demo.mp4) — 1920×1080, 2분 47초.
 "아직 멀었어?"로 시작해 "벌써 다 왔어?"로 끝나는 모션그래픽이고, 차량 화면 틀 안의 장면(깜빡이를 켠 동안 말없이 기울고 끈 뒤 이야기로 받아 주기,
-따라 말하기 → 통과, "Here you are!"로 간식 주기, 오늘 있었던 일을 묻는 이야기, 비밀 버튼, 익힌 낱말로 만든 표현 "A big dog")은 Pleos Connect 에뮬레이터에서 녹화한 실제 앱 화면입니다.
+따라 말하기 → 통과, 첫 화면(로비)에서 "Here you are!"로 간식 주기, 오늘 있었던 일을 묻는 이야기, 비밀 버튼, 익힌 낱말로 만든 표현 "A big dog")은 Pleos Connect 에뮬레이터에서 녹화한 실제 앱 화면입니다.
 "이야기는 매일 새로 씁니다" 장면의 세 편은 앱이 11월 8·9·10일에 실제로 쓴 이야기의 제목과 문장입니다.
 영상 속 아이 이름 "서준"은 가상의 이름입니다.
 

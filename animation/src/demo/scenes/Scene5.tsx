@@ -15,7 +15,7 @@ const STAGES = [
   { level: 100, name: "다 자란 강아지" },
 ];
 /** 모습이 바뀌는 때(2~5번째 모습). */
-/** 앞의 FEED_INTRO초는 "도착해서 말로 간식 주기"(실제 앱 화면)이고, 그 뒤로 자라는 모습이 이어집니다. */
+/** 앞의 FEED_INTRO초는 "첫 화면(로비)에서 말로 간식 주기"(실제 앱 화면)이고, 그 뒤로 자라는 모습이 이어집니다. */
 const INTRO = s(FEED_INTRO);
 const GROW_AT = [1.1, 1.9, 2.7, 3.5].map((at) => INTRO + s(at));
 const NAME_AT = INTRO + s(5.0);
@@ -26,8 +26,11 @@ const HOME_AT = INTRO + s(7.7);
 const CARDS_AT = INTRO + s(10.2);
 /** 그래픽 강아지의 가운데 x. 왼쪽에는 실제 앱의 간식 주기 화면이 들어갑니다. */
 const CX = 1250;
-/** clips/feed.mp4(도착해서 아이가 "Here you are!"라고 말함)에서 첫 간식이 날아가는 때(초). 그래픽 간식과 맞춥니다. */
-const CLIP_FEED = 15.8;
+/**
+ * clips/feed.mp4(로비에서 강아지가 "Here you are!"를 알려 주고 아이가 따라 말함)에서 첫 간식이 개수 표시에서
+ * 날아가는 때(초). 그래픽 간식과 맞춥니다. 녹화의 5초부터 잘라 썼습니다(원래 녹화 12.1초).
+ */
+const CLIP_FEED = 7.1;
 
 /** 5-1: 간식을 주면 자라고, 이름은 아이가 지어 줍니다. */
 const Growth: React.FC = () => {
@@ -61,7 +64,7 @@ const Growth: React.FC = () => {
             style={{ width: "100%", height: "100%", objectFit: "cover" }}
           />
         </DeviceFrame>
-        <div style={{ textAlign: "center", fontSize: 28, color: "rgba(255,255,255,0.65)", marginTop: 12 }}>실제 앱 화면 · 도착해서 말로 간식 주기</div>
+        <div style={{ textAlign: "center", fontSize: 28, color: "rgba(255,255,255,0.65)", marginTop: 12 }}>실제 앱 화면 · 첫 화면에서 말로 간식 주기</div>
       </div>
       {/* 뒷자리 아이가 하는 말 */}
       {frame >= SAY_AT && frame < GROW_AT[0] + s(1.5) ? (
@@ -287,7 +290,7 @@ const Home: React.FC = () => {
 /** 장면 5: 간식 → 성장 → 이름 → 집 꾸미기 → 배운 말 카드. */
 export const Scene5: React.FC<{ duration: number }> = ({ duration }) => (
   <AbsoluteFill>
-    <Header at={4} until={GROW_AT[0] - 6} text="도착하면, " hi="말로 간식을 줘요" />
+    <Header at={4} until={GROW_AT[0] - 6} text="첫 화면에서, " hi="말로 간식을 줘요" />
     <Header at={GROW_AT[0] - 2} until={NAME_AT - 6} text="간식을 주면 " hi="쑥쑥 자라요" />
     <Header at={NAME_AT + 2} until={HOME_AT - 8} text="이름은 " hi="아이가 지어 줘요" />
     <Header at={HOME_AT + 2} text="자랄수록 늘어나는 " hi="집과 카드" />
