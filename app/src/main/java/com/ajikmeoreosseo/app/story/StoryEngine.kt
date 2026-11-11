@@ -44,8 +44,6 @@ class StoryEngine(
         fun onPhase(phase: Phase)
         /** 아이가 말할 차례를 듣고 있는지. */
         fun onListening(active: Boolean)
-        /** 아이가 뒷자리에서 말로 간식을 줬을 때. 모은 간식을 강아지에게 먹입니다. */
-        fun onFeedByVoice()
     }
 
     enum class Phase { IDLE, WAITING_BELT, TELLING, HOLDING, ENDING, ENDED }
@@ -606,17 +604,6 @@ class StoryEngine(
         val handle: (AnswerListener.Result) -> Unit = handle@{ result ->
             listening = false
             ui.onListening(false)
-            if (word === FEED_WORD) {
-                // 말로 간식 주기: 영어 진도나 통과율에는 넣지 않습니다.
-                Log.d(TAG, "feed by voice: passed=${result.passed} heard=${result.heard}")
-                if (result.passed) ui.onFeedByVoice()
-                val reply = Line(if (result.passed) Reactions.FEED_OK else Reactions.FEED_LATER)
-                current?.lines?.addFirst(reply)
-                speaking = false
-                resumeAt = SystemClock.elapsedRealtime() + MIN_PAUSE_MS
-                pumpNow()
-                return@handle
-            }
             val retry = !result.passed && tries == 1 && listener.available && isFirstMeeting(word)
             if (result.passed) passed[word.id] = true else if (!retry) passed.putIfAbsent(word.id, false)
             if (!result.passed && result.heard != null) misheard += word.id
@@ -731,20 +718,10 @@ class StoryEngine(
 
     private var treatAnnounced = false
 
-    /**
-     * 도착했을 때 모은 간식. 차가 아이 목소리를 들을 수 있으면 "Here you are!"라고 말해서 주게 하고,
-     * 못 들으면 차를 세운 뒤 버튼으로 주라고 알려 줍니다.
-     */
+    /** 도착했을 때 모은 간식의 개수만 알려 줍니다. 간식은 로비(홈)로 돌아가서 아이가 말로 줍니다. */
     private fun treatsAtArrival(): List<Line> {
         if (pet.treats <= 0) return emptyList()
-        val count = pet.treats.toString()
-        if (!listener.available) return listOf(Line(Reactions.TREATS_AT_ARRIVAL.replace("{개수}", count)))
-        return listOf(
-            Line(Reactions.FEED_ASK.replace("{개수}", count), pauseAfterMs = 300),
-            Line(Reactions.FEED_SAY, Lang.EN, pauseAfterMs = 400),
-            Line(REPEAT_FEED),
-            Line(Reactions.FEED_SAY, Lang.EN, pauseAfterMs = 2_800, listenFor = FEED_WORD),
-        )
+        return listOf(Line(Reactions.TREATS_AT_ARRIVAL.replace("{개수}", pet.treats.toString())))
     }
 
     // endregion
@@ -929,8 +906,6 @@ class StoryEngine(
     private companion object {
 
         /** 말로 간식 줄 때 아이가 할 말. 단어장의 영어 수업과는 따로 셉니다. */
-        private val FEED_WORD = Word("feed_here_you_are", Reactions.FEED_SAY, "여기 있어", 2)
-        private const val REPEAT_FEED = "따라 말하면 {멍이} 받아먹을게!"
         private const val ECHO_PAUSE_MS = 500L
         const val TAG = "StoryEngine"
         const val KEY_TURN = "turn"

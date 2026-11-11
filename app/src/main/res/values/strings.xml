@@ -10,7 +10,7 @@
     <string name="greeting_baby">{이름아}, 아기 {멍이} 기다렸어. 오늘도 같이 달빛 섬에 가 볼까?</string>
     <string name="greeting_adult">{이름아}, 다 자란 {멍이} 준비 끝! 오늘도 달빛 섬으로 출발할까?</string>
     <string name="greeting_after">{이름아}, 오늘도 잘 들었어! 또 만나.</string>
-    <string name="greeting_treats">{이름아}, 간식이 %1$d개 있어! {멍한테} 줘 볼까?</string>
+    <string name="greeting_treats">{이름아}, 간식이 %1$d개 있어! 영어로 말하면 {멍이} 받아먹을게.</string>
     <string name="greeting_grown">와! {멍이} 자랐어! {이름이} 영어를 열심히 배운 덕분이야.</string>
     <string name="reward">꿈 구슬 %1$d개 · 레벨 %2$d</string>
     <string name="reward_off">꿈 구슬 %1$d개</string>
@@ -25,11 +25,14 @@
     <string name="pet_level">Lv.%1$d · %2$s</string>
     <string name="pet_next">다음 모습까지 간식 %1$d개</string>
     <string name="pet_grown">다 자랐어요! 그래도 간식은 늘 좋아해요.</string>
-    <string name="feed">간식 주기</string>
     <string name="feed_count">×%1$d</string>
     <string name="feed_none">간식이 없어요</string>
     <string name="feed_hint">이야기 속에서 영어를 배우면 간식이 생겨요</string>
     <string name="feed_driving">차를 세우면 줄 수 있어요</string>
+    <string name="feed_listening">듣고 있어요</string>
+    <string name="feed_say">지금 “Here you are!” 하고 말해 봐요</string>
+    <string name="feed_have">모은 간식</string>
+    <string name="feed_voice_hint">“Here you are!” 하고 말하면 {멍이} 받아먹어요</string>
     <string name="settings">설정</string>
     <string name="house_button">{멍}네 집</string>
     <string name="house_new">새 물건!</string>

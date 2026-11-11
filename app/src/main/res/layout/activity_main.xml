@@ -276,16 +276,16 @@
                 android:textColor="@color/text_dim"
                 android:textSize="28sp" />
 
+            <!-- 모은 간식의 개수(버튼이 아님). 간식은 아이가 "Here you are!"라고 말해서 줍니다. -->
             <LinearLayout
                 android:id="@+id/feedButton"
-                style="@style/Clay"
                 android:layout_width="wrap_content"
-                android:layout_height="150dp"
-                android:background="@drawable/clay_yellow"
+                android:layout_height="130dp"
+                android:background="@drawable/bg_tag"
+                android:gravity="center"
                 android:orientation="horizontal"
-                android:paddingStart="40dp"
-                android:paddingEnd="52dp"
-                android:paddingBottom="10dp">
+                android:paddingStart="32dp"
+                android:paddingEnd="44dp">
 
                 <ImageView
                     android:id="@+id/feedIcon"
@@ -299,17 +299,17 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="14dp"
-                    android:text="@string/feed"
-                    android:textColor="@color/ink"
-                    android:textSize="50sp" />
+                    android:text="@string/feed_have"
+                    android:textColor="@color/text"
+                    android:textSize="44sp" />
 
                 <TextView
                     android:id="@+id/feedCount"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="12dp"
-                    android:textColor="@color/ink"
-                    android:textSize="44sp" />
+                    android:textColor="@color/kid_yellow"
+                    android:textSize="48sp" />
             </LinearLayout>
         </LinearLayout>
 

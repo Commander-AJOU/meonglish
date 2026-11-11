@@ -128,7 +128,6 @@ class MainActivity : Activity(), StoryEngine.Ui {
     private var lastCaption: String? = null
     private var lastCaptionEnglish = false
     private var feedingUntil = 0L
-    private var yumIndex = 0
     private var grewJustNow = false
     private var newItemJustNow = false
 
@@ -204,7 +203,6 @@ class MainActivity : Activity(), StoryEngine.Ui {
 
         Clay.pressable(findViewById(R.id.startButton), ::enterStory)
         Clay.pressable(settingsButton, ::openSettings)
-        Clay.pressable(feedButton) { feed() }
         Clay.pressable(houseButton, ::openHouse)
         Clay.pressable(findViewById(R.id.houseBack), ::closeHouse)
         Clay.pressable(findViewById(R.id.reward), ::openWordBook)
@@ -256,6 +254,7 @@ class MainActivity : Activity(), StoryEngine.Ui {
         narrator.start()
         car.start()
         trip.start()
+        answers.onReady = { if (!isFinishing && !isDestroyed) { renderHome(); maybeAskFeed() } }
         answers.start()
         prepareStory()
         if (BuildConfig.DEBUG) {
@@ -412,6 +411,7 @@ class MainActivity : Activity(), StoryEngine.Ui {
     /** 화면이 강아지를 향해 동그랗게 닫히고, 제목이 뜬 뒤, 이야기 속에서 다시 열립니다. */
     private fun enterStory() {
         if (transitioning || screen != Screen.HOME) return
+        stopFeedListening()
         transitioning = true
         sky.puppyCenter(point)
 
@@ -472,7 +472,9 @@ class MainActivity : Activity(), StoryEngine.Ui {
         sky.setHome(next == Screen.HOME)
         if (next == Screen.HOME) {
             sky.setProgress(0f)
+            feedAsked = false
             renderHome()
+            maybeAskFeed()
         } else {
             lastCaption = null
             chapter.visibility = View.INVISIBLE
@@ -515,7 +517,7 @@ class MainActivity : Activity(), StoryEngine.Ui {
             }
         }
 
-        val canFeed = pet.treats > 0 && !driving
+        // 로비에는 간식 주기 버튼 대신 모은 간식의 개수만 보입니다. 간식은 아이가 "Here you are!"라고 말해서 줍니다.
         feedCount.text = when {
             pet.treats > 0 && pet.hasHalfTreat -> getString(R.string.feed_count_half, pet.treats)
             pet.treats > 0 -> getString(R.string.feed_count, pet.treats)
@@ -524,21 +526,24 @@ class MainActivity : Activity(), StoryEngine.Ui {
         // 반 조각만 있을 때는 "간식이 없어요" 옆에 "반 조각"이 붙어 어색하므로 한마디로 보여 줍니다.
         feedLabel.setText(
             when {
-                pet.treats > 0 -> R.string.feed
+                feedListening -> R.string.feed_listening
+                pet.treats > 0 -> R.string.feed_have
                 pet.hasHalfTreat -> R.string.feed_half_only
                 else -> R.string.feed_none
             },
         )
-        feedButton.isEnabled = canFeed
-        feedButton.alpha = if (canFeed) 1f else 0.45f
-        feedHint.text = getString(
-            when {
-                pet.treats == 0 -> R.string.feed_hint
-                driving -> R.string.feed_driving
-                else -> R.string.feed_hint
-            }
+        feedButton.alpha = if (pet.treats > 0) 1f else 0.6f
+        feedHint.text = render(
+            getString(
+                when {
+                    feedListening -> R.string.feed_say
+                    pet.treats == 0 -> R.string.feed_hint
+                    driving -> R.string.feed_driving
+                    else -> R.string.feed_voice_hint
+                },
+            ),
         )
-        feedHint.visibility = if (canFeed) View.INVISIBLE else View.VISIBLE
+        feedHint.visibility = if (pet.treats > 0 && !driving && !feedListening && !answers.available) View.INVISIBLE else View.VISIBLE
 
         val pack = todayPack()
         storyTag.text = getString(R.string.home_story_today, render(pack.title))
@@ -550,24 +555,115 @@ class MainActivity : Activity(), StoryEngine.Ui {
         houseButton.alpha = if (driving) 0.35f else 1f
     }
 
-    /**
-     * 아이가 뒷자리에서 "Here you are!"라고 말해 간식을 줬을 때(도착해서 차를 세운 뒤).
-     * 모은 간식을 하나씩 차례로 먹입니다. 강아지 대사는 이야기 엔진이 하므로 여기서는 말하지 않습니다.
-     */
-    override fun onFeedByVoice() {
+    // 로비에서 말로 간식 주기
+    //
+    // 간식은 이야기 속에서 영어를 배우며 모으고, 로비(홈)로 돌아오면 줍니다. 로비에는 간식 주기 버튼 대신 모은 개수만 보이고,
+    // 강아지가 "Here you are!"를 알려 주면 아이가 뒷자리에서 말해서 줍니다(아이 손은 차량 화면에 닿지 않으므로).
+    // 못 들으면 한 번 더 말하게 하고, 두 번 다 못 들으면 차 마이크가 뒷자리 소리를 못 들었을 수도 있으므로 그래도 줍니다.
+    // 음성 인식이 없는 차에서는 로비에 오면 그냥 줍니다.
+
+    /** 이번에 로비에 온 뒤 간식을 달라고 이미 물었는지(한 번 올 때 한 번만 묻습니다). */
+    private var feedAsked = false
+
+    /** 로비에서 아이가 "Here you are!"라고 말하기를 기다리는 중인지. */
+    private var feedListening = false
+
+    /** 말로 간식을 주는 동안 자랐는지, 영어가 어려워졌는지, 새 물건이 열렸는지(다 먹은 뒤 한 번에 알려 줍니다). */
+    private var voiceGrew = false
+    private var voiceHarder = false
+    private var voiceUnlocked = false
+
+    /** 로비에 왔을 때(앱을 켰을 때, 이야기에서 돌아왔을 때, 차를 세웠을 때) 간식이 있으면 강아지가 먼저 달라고 합니다. */
+    private fun maybeAskFeed(delayMs: Long = FEED_ASK_DELAY_MS) {
+        main.removeCallbacks(askFeed)
+        main.postDelayed(askFeed, delayMs)
+    }
+
+    private val askFeed = Runnable {
+        if (feedAsked || feedListening || isFinishing || isDestroyed) return@Runnable
+        if (driving || transitioning || screen != Screen.HOME || pet.treats <= 0) return@Runnable
+        // 다른 화면(집 꾸미기, 설정 등)을 보고 있으면 닫을 때 다시 봅니다.
+        if (settings.visibility == View.VISIBLE || houseScreen.visibility == View.VISIBLE || wordbookScreen.visibility == View.VISIBLE) return@Runnable
+        if (!answers.initialized) return@Runnable // 준비되면 onReady에서 다시 부릅니다.
+        feedAsked = true
+        if (!answers.available) {
+            giveTreats(Reactions.FEED_OK)
+            return@Runnable
+        }
+        feedListening = true
+        renderHome()
+        narrator.stop()
+        narrator.speak(render(Reactions.FEED_HOME_ASK.replace("{개수}", pet.treats.toString()))) {
+            narrator.speak(Reactions.FEED_SAY, Lang.EN) { listenForFeed(tries = 1) }
+        }
+    }
+
+    private fun listenForFeed(tries: Int) {
+        if (!feedListening) return
+        if (driving || screen != Screen.HOME || isFinishing || isDestroyed) {
+            stopFeedListening()
+            return
+        }
+        answers.listen(Reactions.FEED_WORD, FEED_LISTEN_MS) { result ->
+            if (!feedListening) return@listen
+            android.util.Log.d("MainActivity", "lobby feed by voice: passed=${result.passed} heard=${result.heard} tries=$tries")
+            when {
+                result.passed -> giveTreats(Reactions.FEED_OK)
+                tries == 1 -> narrator.speak(render(Reactions.FEED_AGAIN)) {
+                    narrator.speak(Reactions.FEED_SAY, Lang.EN) { listenForFeed(tries = 2) }
+                }
+                else -> giveTreats(Reactions.FEED_HEARD_ANYWAY)
+            }
+        }
+    }
+
+    /** 모은 간식을 하나씩 차례로 먹이고, 먹는 동안 [reply]를 말한 뒤 자란 소식이나 새 물건 소식을 한 번에 알려 줍니다. */
+    private fun giveTreats(reply: String) {
+        feedListening = false
+        voiceGrew = false
+        voiceHarder = false
+        voiceUnlocked = false
+        var replied = false
+        var fed = false
+        fun news() {
+            if (!replied || !fed || screen != Screen.HOME || isFinishing || isDestroyed) return
+            when {
+                voiceGrew -> narrator.speak(render(if (pet.isGrown) Reactions.FULLY_GROWN else Reactions.GROWN)) {
+                    if (voiceHarder) narrator.speak(render(Reactions.GROWN_HARDER_ENGLISH)) { }
+                }
+                voiceUnlocked -> narrator.speak(render(Reactions.NEW_ITEM)) { }
+            }
+        }
         fun next() {
-            if (isFinishing || isDestroyed || driving || pet.treats <= 0) return
-            feed(byVoice = true)
+            if (isFinishing || isDestroyed || driving) return
+            if (pet.treats <= 0) {
+                fed = true
+                news()
+                return
+            }
+            feed()
             main.postAtTime(::next, VOICE_FEED, SystemClock.uptimeMillis() + FEED_LOCK_MS)
         }
         main.removeCallbacksAndMessages(VOICE_FEED)
+        renderHome()
         next()
+        narrator.speak(render(reply)) { replied = true; news() }
     }
 
-    /** 간식 하나가 강아지에게 날아가고, 강아지가 기뻐하며 한 단계 자랍니다. 모습이 바뀌면 빛이 번쩍입니다. */
-    private fun feed(byVoice: Boolean = false) {
-        if (driving || transitioning) return
-        if (!byVoice && screen != Screen.HOME) return
+    /** 듣던 것을 그만둡니다(이야기를 시작하거나 차가 움직일 때). 다음에 로비에 오면 다시 묻습니다. */
+    private fun stopFeedListening() {
+        main.removeCallbacks(askFeed)
+        if (!feedListening) return
+        feedListening = false
+        feedAsked = false
+        answers.cancel()
+        narrator.stop()
+        renderHome()
+    }
+
+    /** 간식 하나가 간식 개수 표시에서 강아지에게 날아가고, 강아지가 기뻐하며 한 단계 자랍니다. 모습이 바뀌면 빛이 번쩍입니다. */
+    private fun feed() {
+        if (driving || transitioning || screen != Screen.HOME) return
         val now = SystemClock.elapsedRealtime()
         if (now < feedingUntil) return
         val levelBefore = pet.level
@@ -575,14 +671,15 @@ class MainActivity : Activity(), StoryEngine.Ui {
         feedingUntil = now + FEED_LOCK_MS
         // 다 자란 뒤에는 먹어도 단계가 그대로이므로, 실제로 오른 단계에서만 새 물건을 찾습니다.
         val unlocked = house.unlockedBetween(levelBefore, result.level)
+        if (unlocked.isNotEmpty()) voiceUnlocked = true
         grewJustNow = result.grewTo != null
         newItemJustNow = unlocked.isNotEmpty()
         renderHome()
 
-        // 간식 버튼의 그림 자리에서 출발합니다(장면 뷰 안의 좌표로 바꿔서). 말로 줬으면 화면 아래 가운데(뒷자리 쪽)에서.
+        // 간식 개수 표시의 그림 자리에서 출발합니다(장면 뷰 안의 좌표로 바꿔서).
         val fromX: Float
         val fromY: Float
-        if (byVoice || feedButton.visibility != View.VISIBLE || !feedButton.isShown) {
+        if (!feedButton.isShown) {
             fromX = sky.width * 0.5f
             fromY = sky.height * 0.95f
         } else {
@@ -593,26 +690,11 @@ class MainActivity : Activity(), StoryEngine.Ui {
         }
         sky.feed(fromX, fromY) {
             sky.celebrate()
-            val grewTo = result.grewTo
-            if (byVoice) {
-                if (grewTo != null) {
-                    main.postDelayed({ sky.evolve(grewTo) }, EVOLVE_DELAY_MS)
-                    coach.setMinLevel(pet.englishFloor)
-                }
-                return@feed
-            }
-            if (grewTo != null) {
-                main.postDelayed({ sky.evolve(grewTo) }, EVOLVE_DELAY_MS)
-                // 꼬마·소년이 되면 영어 레벨 최소값도 오릅니다. 올랐으면 한마디 덧붙입니다.
-                val harder = coach.setMinLevel(pet.englishFloor)
-                narrator.speak(render(if (pet.isGrown) Reactions.FULLY_GROWN else Reactions.GROWN)) {
-                    if (harder) narrator.speak(render(Reactions.GROWN_HARDER_ENGLISH)) { }
-                }
-            } else if (unlocked.isNotEmpty()) {
-                narrator.speak(render(Reactions.NEW_ITEM)) { }
-            } else {
-                narrator.speak(render(Reactions.yum[yumIndex++ % Reactions.yum.size])) { }
-            }
+            val grewTo = result.grewTo ?: return@feed
+            main.postDelayed({ sky.evolve(grewTo) }, EVOLVE_DELAY_MS)
+            voiceGrew = true
+            // 꼬마·소년이 되면 영어 레벨 최소값도 오릅니다.
+            if (coach.setMinLevel(pet.englishFloor)) voiceHarder = true
         }
     }
 
@@ -638,6 +720,7 @@ class MainActivity : Activity(), StoryEngine.Ui {
                 val position = event.position
                 driving = position != CarEvent.Gear.Position.PARK && position != CarEvent.Gear.Position.UNKNOWN
                 sky.setDriving(driving)
+                if (driving) stopFeedListening() else maybeAskFeed()
                 // 설정, 글자 입력, 간식 주기는 차를 세웠을 때만 합니다.
                 settingsButton.isEnabled = !driving
                 settingsButton.alpha = if (driving) 0.35f else 1f
@@ -744,6 +827,7 @@ class MainActivity : Activity(), StoryEngine.Ui {
         if (houseScreen.visibility != View.VISIBLE) return
         slideOut(houseScreen)
         renderHome()
+        maybeAskFeed()
     }
 
     /** 물건 상자: 두 칸씩, 열리는 순서대로. 놓인 물건은 금색 테두리, 안 열린 물건은 흐리게. */
@@ -823,6 +907,7 @@ class MainActivity : Activity(), StoryEngine.Ui {
         if (wordbookScreen.visibility != View.VISIBLE) return
         narrator.stop()
         slideOut(wordbookScreen)
+        maybeAskFeed()
     }
 
     /** 배운 말을 카드로 늘어놓습니다. 꿈 구슬이 된 말은 금색 카드, 배우는 중인 말은 흰 카드에 구슬 점. */
@@ -933,6 +1018,7 @@ class MainActivity : Activity(), StoryEngine.Ui {
         if (settings.visibility != View.VISIBLE) return
         slideOut(settings)
         renderHome()
+        maybeAskFeed()
     }
 
     private fun slideIn(view: View) {
@@ -1102,6 +1188,10 @@ class MainActivity : Activity(), StoryEngine.Ui {
         const val FEED_LOCK_MS = 1_100L
         private val VOICE_FEED = Any()
         const val EVOLVE_DELAY_MS = 900L
+        /** 홈에서 "Here you are!"를 듣는 시간(이야기 속 따라 말하기와 같음). */
+        const val FEED_LISTEN_MS = 4_500L
+        /** 로비에 온 뒤 간식을 달라고 하기까지(장면 전환이 끝나고 화면이 자리 잡은 뒤). */
+        const val FEED_ASK_DELAY_MS = 1_800L
         const val REFIT_TIMEOUT_MS = 15_000L
         const val DEBUG_NAVI_ACTION = "com.ajikmeoreosseo.app.DEBUG_NAVI"
         const val DEBUG_FOCUS_ACTION = "com.ajikmeoreosseo.app.DEBUG_FOCUS"

@@ -38,6 +38,13 @@ class AnswerListener(context: Context) {
 
     var onListening: ((Boolean) -> Unit)? = null
 
+    /** 초기화가 끝났는지(성공이든 실패든). 끝나기 전에는 [available]이 아직 정해지지 않은 것입니다. */
+    var initialized = false
+        private set
+
+    /** 초기화가 끝났을 때 한 번(성공이든 실패든). 화면의 안내를 바꾸고 로비의 간식 주기를 시작하는 데 씁니다. */
+    var onReady: (() -> Unit)? = null
+
     private var expected: Word? = null
     private var onResult: ((Result) -> Unit)? = null
     private var heardSoFar: String? = null
@@ -91,6 +98,8 @@ class AnswerListener(context: Context) {
                         available = true
                         stt.addListener(results)
                         Log.d(TAG, "stt ready")
+                        initialized = true
+                        onReady?.invoke()
                     }
                 }
 
@@ -98,12 +107,16 @@ class AnswerListener(context: Context) {
                     main.post {
                         available = false
                         Log.w(TAG, "stt unavailable: $errorType")
+                        initialized = true
+                        onReady?.invoke()
                     }
                 }
             })
         }.onFailure {
             available = false
             Log.w(TAG, "stt init failed", it)
+            initialized = true
+            main.post { onReady?.invoke() }
         }
     }
 
