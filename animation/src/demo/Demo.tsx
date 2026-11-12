@@ -76,7 +76,7 @@ const Sound: React.FC<{ cue: Cue; volume: number }> = ({ cue, volume }) => (
   </Sequence>
 );
 
-/** 「멍글리시」 시연 영상(장면 1~8). */
+/** 「멍글리쉬」 시연 영상(장면 1~8). */
 export const Demo: React.FC = () => (
   <AbsoluteFill style={{ background: "#0A0920" }}>
     <Sequence durationInFrames={SCENE.one.duration + 10} layout="none">

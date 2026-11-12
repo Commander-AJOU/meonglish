@@ -40,7 +40,7 @@ export const Scene8: React.FC<{ duration: number }> = ({ duration }) => {
 
       <div style={{ position: "absolute", left: 126, top: 540, opacity: end, transform: `translateY(${(1 - end) * 24}px)`, color: "#FFFFFF" }}>
         <div style={{ fontSize: 58 }}>
-          Pleos Connect 앱 <span style={{ color: C.yellow }}>「멍글리시」</span>
+          Pleos Connect 앱 <span style={{ color: C.yellow }}>「멍글리쉬」</span>
         </div>
         <div style={{ fontSize: 44, opacity: 0.85, marginTop: 16 }}>차가 가르치는 영어, 배울수록 자라는 강아지</div>
       </div>
