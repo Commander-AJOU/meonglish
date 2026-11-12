@@ -13,5 +13,5 @@ npm run dev                                                    # 미리 보기
 npx remotion render Demo ../docs/demo/ajik-meoreosseo-demo.mp4   # 시연 영상 만들기
 ```
 
-만드는 순서와 설명은 저장소 첫 화면의 README("장면 그림", "시연 영상")에 있습니다.
+만드는 순서와 설명은 [docs/DETAILS.md](../docs/DETAILS.md)의 "장면 그림", "시연 영상"에 있습니다.
 Remotion은 개인과 3인 이하 조직에 무료입니다([라이선스](https://github.com/remotion-dev/remotion/blob/main/LICENSE.md)).
