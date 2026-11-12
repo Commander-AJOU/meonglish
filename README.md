@@ -8,9 +8,9 @@
 
 | 항목 | 내용 |
 |---|---|
-| 팀 | 커맨드아주 |
+| 팀 | 커맨더아주 |
 | 앱 이름 | 멍글리시 (v0.2.0, `com.ajikmeoreosseo.app`) |
-| APK 파일 위치 | [`apk/커맨드아주_멍글리시_release.apk`](apk/커맨드아주_멍글리시_release.apk) (release 빌드) |
+| APK 파일 위치 | [`apk/커맨더아주_멍글리시_release.apk`](apk/커맨더아주_멍글리시_release.apk) (release 빌드) |
 | 실행 방법 | [실행 방법](#실행-방법) |
 | 테스트 환경 및 필요한 설정 | [테스트 환경 및 필요한 설정](#테스트-환경-및-필요한-설정) |
 | 시연 영상 | [`docs/demo/ajik-meoreosseo-demo.mp4`](docs/demo/ajik-meoreosseo-demo.mp4) (2분 32초) |
@@ -356,7 +356,7 @@ npx remotion render Demo ../docs/demo/ajik-meoreosseo-demo.mp4
 2. 이 저장소의 APK를 설치합니다.
 
    ```bash
-   adb install -r "apk/커맨드아주_멍글리시_release.apk"
+   adb install -r "apk/커맨더아주_멍글리시_release.apk"
    ```
 
 3. 앱 목록에서 **멍글리시**를 엽니다. 기어가 P일 때 오른쪽 위 **설정**에서 주인공(아이) 이름을 넣고,
